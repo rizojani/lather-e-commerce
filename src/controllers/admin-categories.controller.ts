@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { WEARABLE_CATEGORIES } from '../common/types/category.enum';
 import { Role } from '../common/types/roles.enum';
 import { CategoriesService } from '../services/categories.service';
 
@@ -19,8 +20,8 @@ export class AdminCategoriesController {
   @ApiBody({
     schema: {
       example: {
-        name: 'Skincare',
-        description: 'Skin products',
+        name: WEARABLE_CATEGORIES[0],
+        description: 'Optional description',
       },
     },
   })

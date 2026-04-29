@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nest build",
+    "seed:categories": "ts-node src/scripts/seed-categories.ts",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
