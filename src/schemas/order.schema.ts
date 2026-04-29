@@ -6,6 +6,19 @@ export type OrderDocument = HydratedDocument<Order>;
 export enum PaymentMethod {
   ONLINE = 'online',
   COD = 'cod',
+  STRIPE = 'stripe',
+  EASYPAISA = 'easypaisa',
+  JAZZCASH = 'jazzcash',
+}
+
+export enum OrderStatus {
+  CREATED = 'created',
+  CONFIRMED = 'confirmed',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  OUT_FOR_DELIVERY = 'out_for_delivery',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
 }
 
 class OrderItem {
@@ -21,8 +34,11 @@ class OrderItem {
 
 @Schema({ timestamps: true })
 export class Order {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  user!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  user?: Types.ObjectId;
+
+  @Prop()
+  sessionId?: string;
 
   @Prop({ type: [OrderItem], default: [] })
   items!: OrderItem[];
@@ -42,8 +58,8 @@ export class Order {
   @Prop({ default: 0 })
   total!: number;
 
-  @Prop({ default: 'pending' })
-  status!: string;
+  @Prop({ enum: OrderStatus, default: OrderStatus.CREATED })
+  status!: OrderStatus;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

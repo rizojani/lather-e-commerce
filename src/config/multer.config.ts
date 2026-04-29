@@ -3,14 +3,32 @@ import { Request } from 'express';
 import { extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 
-const uploadPath = './uploads';
-if (!existsSync(uploadPath)) {
-    mkdirSync(uploadPath, { recursive: true });
+const baseUploadPath = './uploads';
+if (!existsSync(baseUploadPath)) {
+  mkdirSync(baseUploadPath, { recursive: true });
 }
+
+const resolveFolderName = (req: Request, file: Express.Multer.File): string => {
+  if (file.fieldname === 'profileImage') return 'profileImage';
+  if (file.fieldname.toLowerCase().includes('product')) return 'product';
+
+  const urlParts = req.baseUrl?.split('/').filter(Boolean) ?? [];
+  const moduleName = urlParts[urlParts.length - 1];
+  if (moduleName) return moduleName;
+
+  return 'misc';
+};
 
 export const multerConfig = {
   storage: diskStorage({
-    destination: uploadPath,
+    destination: (req: Request, file: Express.Multer.File, callback: (error: Error | null, destination: string) => void) => {
+      const folderName = resolveFolderName(req, file);
+      const targetPath = `${baseUploadPath}/${folderName}`;
+      if (!existsSync(targetPath)) {
+        mkdirSync(targetPath, { recursive: true });
+      }
+      callback(null, targetPath);
+    },
     filename: (
       _req: Request,
       file: Express.Multer.File,

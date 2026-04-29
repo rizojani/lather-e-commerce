@@ -1,26 +1,41 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Body, Controller, Delete, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { CartService } from '../services/cart.service';
 import { UpdateCartRequest } from '../dto/cart/update-cart.cart.dto';
 
 @Controller('cart')
-@UseGuards(AuthGuard('jwt'))
+@ApiTags('User - Cart')
+@ApiBearerAuth()
+@ApiHeader({ name: 'sessionId', required: false, description: 'Required when Authorization token is not provided' })
+@UseGuards(OptionalJwtAuthGuard)
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   @Get()
-  getCart(@CurrentUser('sub') userId: string) {
-    return this.cartService.getCart(userId);
+  @ApiOperation({ summary: 'Get current user cart' })
+  getCart(@CurrentUser('sub') userId: string | undefined, @Headers('sessionid') sessionId?: string) {
+    return this.cartService.getCart({ userId, sessionId });
   }
 
   @Post('items')
-  addOrUpdate(@CurrentUser('sub') userId: string, @Body() payload: UpdateCartRequest) {
-    return this.cartService.addOrUpdate(userId, payload);
+  @ApiOperation({ summary: 'Add or update cart item' })
+  addOrUpdate(
+    @CurrentUser('sub') userId: string | undefined,
+    @Headers('sessionid') sessionId: string | undefined,
+    @Body() payload: UpdateCartRequest,
+  ) {
+    return this.cartService.addOrUpdate({ userId, sessionId }, payload);
   }
 
   @Delete('items/:productId')
-  remove(@CurrentUser('sub') userId: string, @Param('productId') productId: string) {
-    return this.cartService.remove(userId, productId);
+  @ApiOperation({ summary: 'Remove item from cart' })
+  remove(
+    @CurrentUser('sub') userId: string | undefined,
+    @Headers('sessionid') sessionId: string | undefined,
+    @Param('productId') productId: string,
+  ) {
+    return this.cartService.remove({ userId, sessionId }, productId);
   }
 }

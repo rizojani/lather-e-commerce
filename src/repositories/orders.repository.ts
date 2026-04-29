@@ -3,6 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Order, OrderDocument } from '../schemas/order.schema';
 
+interface OrderOwner {
+  userId?: string;
+  sessionId?: string;
+}
+
 @Injectable()
 export class OrdersRepository {
   constructor(@InjectModel(Order.name) private readonly model: Model<OrderDocument>) {}
@@ -11,8 +16,9 @@ export class OrdersRepository {
     return this.model.create(payload);
   }
 
-  findByUser(userId: string) {
-    return this.model.find({ user: userId }).sort({ createdAt: -1 }).exec();
+  findByOwner(owner: OrderOwner) {
+    const filter = owner.userId ? { user: owner.userId } : { sessionId: owner.sessionId };
+    return this.model.find(filter).sort({ createdAt: -1 }).exec();
   }
 
   listAll() {

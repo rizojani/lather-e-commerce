@@ -5,14 +5,13 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
 
     const status =
       exception instanceof HttpException
@@ -24,16 +23,46 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : 'Internal server error';
 
+    const normalizedErrors = this.normalizeErrors(exceptionResponse);
+    const primaryMessage = normalizedErrors[0] ?? 'Internal server error';
+
     response.status(status).json({
       success: false,
-      statusCode: status,
-      path: request.url,
-      message:
-        typeof exceptionResponse === 'string'
-          ? exceptionResponse
-          : (exceptionResponse as { message?: unknown }).message ??
-            exceptionResponse,
-      timestamp: new Date().toISOString(),
+      message: primaryMessage,
+      data: normalizedErrors,
     });
+  }
+
+  private normalizeErrors(exceptionResponse: unknown): string[] {
+    if (typeof exceptionResponse === 'string') {
+      return [exceptionResponse];
+    }
+
+    if (Array.isArray(exceptionResponse)) {
+      return exceptionResponse.map((error) => String(error));
+    }
+
+    if (exceptionResponse && typeof exceptionResponse === 'object') {
+      const responseObject = exceptionResponse as { message?: unknown; error?: unknown };
+      const { message, error } = responseObject;
+
+      if (Array.isArray(message)) {
+        return message.map((item) => String(item));
+      }
+
+      if (typeof message === 'string') {
+        return [message];
+      }
+
+      if (Array.isArray(error)) {
+        return error.map((item) => String(item));
+      }
+
+      if (typeof error === 'string') {
+        return [error];
+      }
+    }
+
+    return ['Internal server error'];
   }
 }

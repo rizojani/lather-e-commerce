@@ -16,8 +16,11 @@ class CartItem {
 
 @Schema({ timestamps: true })
 export class Cart {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
-  user!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  user?: Types.ObjectId;
+
+  @Prop()
+  sessionId?: string;
 
   @Prop({ type: [CartItem], default: [] })
   items!: CartItem[];
@@ -27,3 +30,5 @@ export class Cart {
 }
 
 export const CartSchema = SchemaFactory.createForClass(Cart);
+CartSchema.index({ user: 1 }, { unique: true, sparse: true });
+CartSchema.index({ sessionId: 1 }, { unique: true, sparse: true });

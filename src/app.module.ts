@@ -7,6 +7,8 @@ import { CategoriesModule } from './modules/categories.module';
 import { ProductsModule } from './modules/products.module';
 import { CartModule } from './modules/cart.module';
 import { OrdersModule } from './modules/orders.module';
+import { AddressesModule } from './modules/addresses.module';
+import { PaymentLogsModule } from './modules/payment-logs.module';
 import { ReviewsModule } from './modules/reviews.module';
 import { WishlistModule } from './modules/wishlist.module';
 import { NotificationsModule } from './modules/notifications.module';
@@ -27,6 +29,8 @@ import { AnalyticsModule } from './modules/analytics.module';
     ProductsModule,
     CartModule,
     OrdersModule,
+    AddressesModule,
+    PaymentLogsModule,
     ReviewsModule,
     WishlistModule,
     NotificationsModule,

@@ -38,6 +38,9 @@ export class Product {
 
   @Prop({ default: 0 })
   stock!: number;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Media' }], default: [] })
+  media!: Types.ObjectId[];
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
