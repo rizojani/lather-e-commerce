@@ -20,7 +20,6 @@
                 { "key": "name", "value": "John Doe", "type": "text" },
                 { "key": "email", "value": "john@example.com", "type": "text" },
                 { "key": "password", "value": "password123", "type": "text" },
-                { "key": "role", "value": "user", "type": "text" },
                 { "key": "profileImage", "type": "file", "src": "", "disabled": true }
               ]
             },
@@ -45,7 +44,6 @@
                   "if (token) {",
                   "  const tokenKey = role === 'admin' ? 'admin_token' : 'user_token';",
                   "  pm.collectionVariables.set(tokenKey, token);",
-                  "  pm.collectionVariables.set('accessToken', token);",
                   "  pm.test('Access token saved from register', function () {",
                   "    pm.expect(token).to.be.a('string').and.not.empty;",
                   "  });",
@@ -91,7 +89,6 @@
                   "if (token) {",
                   "  const tokenKey = role === 'admin' ? 'admin_token' : 'user_token';",
                   "  pm.collectionVariables.set(tokenKey, token);",
-                  "  pm.collectionVariables.set('accessToken', token);",
                   "  pm.test('Access token saved from login', function () {",
                   "    pm.expect(token).to.be.a('string').and.not.empty;",
                   "  });",
@@ -155,7 +152,7 @@
               "name": "Dashboard",
               "request": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "url": "{{baseUrl}}/admin/analytics"
               }
             }
@@ -169,7 +166,7 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -183,7 +180,7 @@
               "name": "List Categories",
               "request": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "url": "{{baseUrl}}/admin/categories"
               }
             }
@@ -197,7 +194,7 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -212,7 +209,7 @@
               "request": {
                 "method": "PATCH",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -226,7 +223,7 @@
               "name": "Delete Product",
               "request": {
                 "method": "DELETE",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "url": "{{baseUrl}}/admin/products/{{productId}}"
               }
             }
@@ -239,7 +236,7 @@
               "name": "List All Orders",
               "request": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "url": "{{baseUrl}}/admin/orders"
               }
             },
@@ -248,7 +245,7 @@
               "request": {
                 "method": "PATCH",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -263,7 +260,7 @@
               "request": {
                 "method": "PATCH",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -333,7 +330,7 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
                 "url": "{{baseUrl}}/cart"
@@ -344,7 +341,7 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
@@ -360,7 +357,7 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
                 "url": "{{baseUrl}}/cart/items/{{productId}}"
@@ -376,7 +373,7 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
@@ -392,7 +389,7 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
                 "url": "{{baseUrl}}/orders/my"
@@ -408,7 +405,7 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
@@ -422,7 +419,7 @@
               "name": "List Addresses",
               "request": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
                 "url": "{{baseUrl}}/addresses"
               }
             }
@@ -435,7 +432,7 @@
               "name": "My Profile",
               "request": {
                 "method": "GET",
-                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
                 "url": "{{baseUrl}}/users/me"
               }
             }
@@ -450,7 +447,11 @@
       "value": "http://localhost:3000/api/v1"
     },
     {
-      "key": "accessToken",
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "user_token",
       "value": ""
     },
     {

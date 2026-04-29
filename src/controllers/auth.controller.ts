@@ -26,7 +26,6 @@ export class AuthController {
         name: { type: 'string', example: 'John Doe' },
         email: { type: 'string', example: 'john@example.com' },
         password: { type: 'string', example: 'password123' },
-        role: { type: 'string', enum: ['admin', 'user'], example: 'user' },
         profileImage: {
           type: 'string',
           format: 'binary',
@@ -41,7 +40,6 @@ export class AuthController {
             name: 'John Doe',
             email: 'john@example.com',
             password: 'password123',
-            role: 'user',
           },
         },
         withProfileImage: {
@@ -50,7 +48,6 @@ export class AuthController {
             name: 'John Doe',
             email: 'john@example.com',
             password: 'password123',
-            role: 'user',
             profileImage: '(binary)',
           },
         },

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { User } from '../schemas/user.schema';
+import { Role } from '../common/types/roles.enum';
 import { MediaOwnerType, MediaType } from '../schemas/media.schema';
 import { MediaService } from './media.service';
 import { UsersService } from '../services/users.service';
@@ -19,7 +20,11 @@ export class AuthService {
   async register(payload: RegisterRequest, profileImage?: Express.Multer.File) {
     const { profileImage: _profileImageField, ...registerPayload } = payload;
     const hashedPassword = await bcrypt.hash(registerPayload.password, 10);
-    const user = await this.usersService.create({ ...registerPayload, password: hashedPassword });
+    const user = await this.usersService.create({
+      ...registerPayload,
+      password: hashedPassword,
+      role: Role.USER,
+    });
     let uploadedProfileMedia: Awaited<ReturnType<MediaService['create']>> | null = null;
 
     if (profileImage) {
