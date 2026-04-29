@@ -17,4 +17,17 @@ export class PaymentLogsService {
       status: PaymentStatus.UNPAID,
     });
   }
+
+  markOrderPaymentPaid(orderId: string, transactionId?: string) {
+    return this.paymentLogModel
+      .findOneAndUpdate(
+        { modelType: PaymentLogOwnerType.ORDER, modelId: orderId },
+        {
+          status: PaymentStatus.PAID,
+          ...(transactionId ? { transactionId } : {}),
+        },
+        { new: true },
+      )
+      .exec();
+  }
 }

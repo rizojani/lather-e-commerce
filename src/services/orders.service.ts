@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CartService } from '../services/cart.service';
 import { CartRepository } from '../repositories/cart.repository';
 import { OrdersRepository } from '../repositories/orders.repository';
@@ -6,6 +6,7 @@ import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
 import { OrderStatus } from '../schemas/order.schema';
 import { AddressesService } from './addresses.service';
 import { PaymentLogsService } from './payment-logs.service';
+import { MarkOrderPaymentPaidRequest } from '../dto/orders/mark-order-payment-paid.orders.dto';
 
 interface OrderOwner {
   userId?: string;
@@ -73,6 +74,35 @@ export class OrdersService {
 
   listAll() {
     return this.ordersRepository.listAll();
+  }
+
+  async updateOrderStatus(orderId: string, status: OrderStatus) {
+    const updated = await this.ordersRepository.updateStatus(orderId, status);
+    if (!updated) {
+      throw new NotFoundException('Order not found');
+    }
+    return updated;
+  }
+
+  async markOrderPaymentPaid(orderId: string, payload: MarkOrderPaymentPaidRequest) {
+    const order = await this.ordersRepository.findById(orderId);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const paymentLog = await this.paymentLogsService.markOrderPaymentPaid(orderId, payload.transactionId);
+    if (!paymentLog) {
+      throw new NotFoundException('Payment log not found for order');
+    }
+
+    if (order.status === OrderStatus.CREATED || order.status === OrderStatus.CONFIRMED) {
+      await this.ordersRepository.updateStatus(orderId, OrderStatus.PROCESSING);
+    }
+
+    return {
+      message: 'Payment marked as paid successfully',
+      data: paymentLog,
+    };
   }
 
   trendingCurrentYear() {

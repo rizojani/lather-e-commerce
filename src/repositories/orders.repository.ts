@@ -16,6 +16,14 @@ export class OrdersRepository {
     return this.model.create(payload);
   }
 
+  findById(id: string) {
+    return this.model.findById(id).exec();
+  }
+
+  updateStatus(id: string, status: Order['status']) {
+    return this.model.findByIdAndUpdate(id, { status }, { new: true }).exec();
+  }
+
   findByOwner(owner: OrderOwner) {
     const filter = owner.userId ? { user: owner.userId } : { sessionId: owner.sessionId };
     return this.model.find(filter).sort({ createdAt: -1 }).exec();
