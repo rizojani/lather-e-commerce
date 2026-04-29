@@ -21,11 +21,45 @@
                 { "key": "email", "value": "john@example.com", "type": "text" },
                 { "key": "password", "value": "password123", "type": "text" },
                 { "key": "role", "value": "user", "type": "text" },
-                { "key": "profileImage", "type": "file", "src": "" }
+                { "key": "profileImage", "type": "file", "src": "", "disabled": true }
               ]
             },
             "url": "{{baseUrl}}/auth/register"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const token = jsonData?.data?.accessToken || jsonData?.accessToken;",
+                  "let role = jsonData?.data?.user?.role;",
+                  "if (!role && token) {",
+                  "  try {",
+                  "    const payload = JSON.parse(atob(token.split('.')[1]));",
+                  "    role = payload?.role;",
+                  "  } catch (e) {}",
+                  "}",
+                  "if (token) {",
+                  "  const tokenKey = role === 'admin' ? 'admin_token' : 'user_token';",
+                  "  pm.collectionVariables.set(tokenKey, token);",
+                  "  pm.collectionVariables.set('accessToken', token);",
+                  "  pm.test('Access token saved from register', function () {",
+                  "    pm.expect(token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  pm.test('Token saved by role from register', function () {",
+                  "    pm.expect(['admin_token', 'user_token']).to.include(tokenKey);",
+                  "  });",
+                  "}",
+                  "pm.test('Register response is successful', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
@@ -37,7 +71,41 @@
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": "{{baseUrl}}/auth/login"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const token = jsonData?.data?.accessToken || jsonData?.accessToken;",
+                  "let role = jsonData?.data?.user?.role;",
+                  "if (!role && token) {",
+                  "  try {",
+                  "    const payload = JSON.parse(atob(token.split('.')[1]));",
+                  "    role = payload?.role;",
+                  "  } catch (e) {}",
+                  "}",
+                  "if (token) {",
+                  "  const tokenKey = role === 'admin' ? 'admin_token' : 'user_token';",
+                  "  pm.collectionVariables.set(tokenKey, token);",
+                  "  pm.collectionVariables.set('accessToken', token);",
+                  "  pm.test('Access token saved from login', function () {",
+                  "    pm.expect(token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  pm.test('Token saved by role from login', function () {",
+                  "    pm.expect(['admin_token', 'user_token']).to.include(tokenKey);",
+                  "  });",
+                  "}",
+                  "pm.test('Login response is successful', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Forgot Password - Send Token",
@@ -379,7 +447,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8858/api/v1"
+      "value": "http://localhost:3000/api/v1"
     },
     {
       "key": "accessToken",

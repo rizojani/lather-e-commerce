@@ -1,5 +1,9 @@
 export class AuthResource {
-  static tokenResponse(accessToken: string) {
-    return { accessToken, tokenType: 'Bearer' };
+  static tokenResponse(accessToken: string, user?: unknown) {
+    return {
+      accessToken,
+      tokenType: 'Bearer',
+      ...(user ? { user } : {}),
+    };
   }
 }

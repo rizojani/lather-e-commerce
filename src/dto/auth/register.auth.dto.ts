@@ -20,4 +20,13 @@ export class RegisterRequest {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({
+    description: 'Optional multipart key for profile image upload',
+    type: String,
+    format: 'binary',
+  })
+  @IsOptional()
+  @IsString()
+  profileImage?: string;
 }

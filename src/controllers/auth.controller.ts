@@ -27,17 +27,42 @@ export class AuthController {
         email: { type: 'string', example: 'john@example.com' },
         password: { type: 'string', example: 'password123' },
         role: { type: 'string', enum: ['admin', 'user'], example: 'user' },
-        profileImage: { type: 'string', format: 'binary' },
+        profileImage: {
+          type: 'string',
+          format: 'binary',
+          description: 'Optional profile image file',
+        },
       },
       required: ['name', 'email', 'password'],
+      examples: {
+        withoutProfileImage: {
+          summary: 'Register without profile image',
+          value: {
+            name: 'John Doe',
+            email: 'john@example.com',
+            password: 'password123',
+            role: 'user',
+          },
+        },
+        withProfileImage: {
+          summary: 'Register with profile image',
+          value: {
+            name: 'John Doe',
+            email: 'john@example.com',
+            password: 'password123',
+            role: 'user',
+            profileImage: '(binary)',
+          },
+        },
+      },
     },
   })
   async register(
     @Body() payload: RegisterRequest,
     @UploadedFile() profileImage?: Express.Multer.File,
   ) {
-    const token = await this.authService.register(payload, profileImage);
-    return AuthResource.tokenResponse(token);
+    const { accessToken, user } = await this.authService.register(payload, profileImage);
+    return AuthResource.tokenResponse(accessToken, user);
   }
 
   @Post('login')

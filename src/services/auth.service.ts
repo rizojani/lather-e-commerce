@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { User } from '../schemas/user.schema';
 import { MediaOwnerType, MediaType } from '../schemas/media.schema';
 import { MediaService } from './media.service';
 import { UsersService } from '../services/users.service';
@@ -16,21 +17,26 @@ export class AuthService {
   ) {}
 
   async register(payload: RegisterRequest, profileImage?: Express.Multer.File) {
-    const hashedPassword = await bcrypt.hash(payload.password, 10);
-    const user = await this.usersService.create({ ...payload, password: hashedPassword });
+    const { profileImage: _profileImageField, ...registerPayload } = payload;
+    const hashedPassword = await bcrypt.hash(registerPayload.password, 10);
+    const user = await this.usersService.create({ ...registerPayload, password: hashedPassword });
+    let uploadedProfileMedia: Awaited<ReturnType<MediaService['create']>> | null = null;
 
     if (profileImage) {
-      const media = await this.mediaService.create({
+      uploadedProfileMedia = await this.mediaService.create({
         file: profileImage,
         modelType: MediaOwnerType.USER,
         modelId: user.id,
         type: MediaType.PROFILE,
       });
-      user.profileImage = media._id;
+      user.profileImage = uploadedProfileMedia._id;
       await user.save();
     }
 
-    return this.signToken(user.id, user.email, user.role);
+    return {
+      accessToken: this.signToken(user.id, user.email, user.role),
+      user: this.mapUserForAuthResponse(user, uploadedProfileMedia),
+    };
   }
 
   async login(payload: LoginRequest) {
@@ -119,5 +125,26 @@ export class AuthService {
 
   private getTokenExpiryDate(minutes = 15): Date {
     return new Date(Date.now() + minutes * 60 * 1000);
+  }
+
+  private mapUserForAuthResponse(
+    user: User & { id?: string; _id?: unknown },
+    media?: { id?: string; _id?: unknown; originalName?: string; mimeType?: string; path?: string } | null,
+  ) {
+    const userId = user.id ?? String(user._id ?? '');
+    return {
+      id: userId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profileImage: media
+        ? {
+          id: media.id ?? String(media._id ?? ''),
+          originalName: media.originalName ?? '',
+          mimeType: media.mimeType ?? '',
+          path: media.path ?? '',
+        }
+        : null,
+    };
   }
 }
