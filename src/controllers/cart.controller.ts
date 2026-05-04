@@ -2,8 +2,9 @@ import { Body, Controller, Delete, Get, Headers, Param, Post, UseGuards } from '
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
+import { CartResource } from '../resources/cart.resource';
 import { CartService } from '../services/cart.service';
-import { UpdateCartRequest } from '../dto/cart/update-cart.cart.dto';
+import { AddOrUpdateCartItemDto } from '../dto/cart/update-cart.cart.dto';
 
 @Controller('cart')
 @ApiTags('User - Cart')
@@ -14,28 +15,39 @@ export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get current user cart' })
-  getCart(@CurrentUser('sub') userId: string | undefined, @Headers('sessionid') sessionId?: string) {
-    return this.cartService.getCart({ userId, sessionId });
+  @ApiOperation({
+    summary: 'Get current user cart',
+    description:
+      'Returns the user cart header (`cartableType: user`) and line items (`cartableType: cart`) with nested `product` including medias.',
+  })
+  async getCart(@CurrentUser('sub') userId: string | undefined, @Headers('sessionid') sessionId?: string) {
+    const cart = await this.cartService.getCart({ userId, sessionId });
+    return CartResource.one(cart);
   }
 
   @Post('items')
-  @ApiOperation({ summary: 'Add or update cart item' })
-  addOrUpdate(
+  @ApiOperation({
+    summary: 'Add or update cart line',
+    description:
+      'Finds or creates the user cart (`cartableType: user`), then upserts a line (`cartableType: cart`) keyed by product + size + color. Snapshots `price` and optional `discount` %.',
+  })
+  async addOrUpdate(
     @CurrentUser('sub') userId: string | undefined,
     @Headers('sessionid') sessionId: string | undefined,
-    @Body() payload: UpdateCartRequest,
+    @Body() payload: AddOrUpdateCartItemDto,
   ) {
-    return this.cartService.addOrUpdate({ userId, sessionId }, payload);
+    const cart = await this.cartService.addOrUpdate({ userId, sessionId }, payload);
+    return CartResource.one(cart);
   }
 
   @Delete('items/:productId')
   @ApiOperation({ summary: 'Remove item from cart' })
-  remove(
+  async remove(
     @CurrentUser('sub') userId: string | undefined,
     @Headers('sessionid') sessionId: string | undefined,
     @Param('productId') productId: string,
   ) {
-    return this.cartService.remove({ userId, sessionId }, productId);
+    const cart = await this.cartService.remove({ userId, sessionId }, productId);
+    return CartResource.one(cart);
   }
 }

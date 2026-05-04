@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ProductResource } from '../resources/product.resource';
 import { ProductListRequest } from '../dto/products/product-list.products.dto';
 import { ProductsService } from '../services/products.service';
@@ -38,5 +38,12 @@ export class UserProductsController {
   @ApiOperation({ summary: 'List popular products' })
   async popular() {
     return ProductResource.collection((await this.productsService.popular()) as unknown as Array<Record<string, unknown>>);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get product by id (storefront; inactive returns 404)' })
+  @ApiParam({ name: 'id', description: 'Product MongoDB id' })
+  async getOne(@Param('id') id: string) {
+    return this.productsService.getDetailForUser(id);
   }
 }

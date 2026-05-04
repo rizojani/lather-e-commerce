@@ -65,8 +65,8 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   async login(@Body() payload: LoginRequest) {
-    const token = await this.authService.login(payload);
-    return AuthResource.tokenResponse(token);
+    const { accessToken, user } = await this.authService.login(payload);
+    return AuthResource.tokenResponse(accessToken, user);
   }
 
   @Post('forgot-password/send-token')

@@ -3,9 +3,45 @@
     "_postman_id": "e0f4d7b8-d7dc-4ca0-8fcb-2519f90d2f1d",
     "name": "Lather E-Commerce Backend APIs",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Complete API collection for admin and user flows, including auth and forgot password."
+    "description": "Single Postman collection file. Global prefix `/api/v1`.\n\n**baseUrl:** Set the collection variable `baseUrl` to `http://localhost:<PORT>/api/v1` to match your `.env` `PORT` (default in this file follows repo `.env`).\n\n**Category dropdown:** `GET /categories/dropdown` under **Public (no auth)** — no `Authorization` header; usable by guests and any role.\n\nAdmin: products list + filters, multipart create, paginated categories."
   },
   "item": [
+    {
+      "name": "Public (no auth)",
+      "item": [
+        {
+          "name": "Category dropdown (no token — any role / guest)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/categories/dropdown",
+            "description": "Do not send Authorization. Response `data`: `[{ id, title }, ...]` (active categories, A→Z). Same for guests, customers, and admins."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const arr = jsonData?.data;",
+                  "pm.test('Category dropdown: 200 and data is array', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(arr).to.be.an('array');",
+                  "});",
+                  "if (arr && arr.length) {",
+                  "  pm.test('Each row has id and title', function () {",
+                  "    pm.expect(arr[0]).to.have.keys('id', 'title');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "Auth",
       "item": [
@@ -98,7 +134,14 @@
                   "}",
                   "pm.test('Login response is successful', function () {",
                   "  pm.expect(pm.response.code).to.equal(200);",
-                  "});"
+                  "});",
+                  "const user = jsonData?.data?.user;",
+                  "if (user) {",
+                  "  pm.test('Login returns user object', function () {",
+                  "    pm.expect(user).to.be.an('object');",
+                  "    pm.expect(user.email).to.be.a('string');",
+                  "  });",
+                  "}"
                 ]
               }
             }
@@ -174,15 +217,59 @@
                   "raw": "{\n  \"name\": \"Skincare\",\n  \"description\": \"Skin products\"\n}"
                 },
                 "url": "{{baseUrl}}/admin/categories"
-              }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const id = j?.data?.id;",
+                      "if (id) {",
+                      "  pm.collectionVariables.set('categoryId', id);",
+                      "  pm.test('categoryId saved from create category', function () {",
+                      "    pm.expect(id).to.be.a('string').and.not.empty;",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
             },
             {
-              "name": "List Categories",
+              "name": "List Categories (paginated)",
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-                "url": "{{baseUrl}}/admin/categories"
-              }
+                "url": "{{baseUrl}}/admin/categories?page=1&limit=10"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let jsonData = {};",
+                      "try { jsonData = pm.response.json(); } catch (e) {}",
+                      "const first = jsonData?.data?.items?.[0];",
+                      "if (first?.id) {",
+                      "  pm.collectionVariables.set('categoryId', first.id);",
+                      "  pm.test('categoryId saved from first row', function () {",
+                      "    pm.expect(first.id).to.be.a('string').and.not.empty;",
+                      "  });",
+                      "}",
+                      "pm.test('List categories returns paginated shape', function () {",
+                      "  pm.expect(pm.response.code).to.equal(200);",
+                      "  pm.expect(jsonData?.data).to.be.an('object');",
+                      "  pm.expect(jsonData?.data?.items).to.be.an('array');",
+                      "  pm.expect(jsonData?.data?.meta).to.be.an('object');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },
@@ -190,33 +277,191 @@
           "name": "Products",
           "item": [
             {
-              "name": "Create Product",
+              "name": "List Products (paginated + filters)",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/products?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "products"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Optional; default 1" },
+                    { "key": "limit", "value": "10", "description": "Optional; default 10, max 100" },
+                    {
+                      "key": "search",
+                      "value": "jacket",
+                      "disabled": true,
+                      "description": "Matches title, legacy name, or category name (substring)"
+                    },
+                    {
+                      "key": "status",
+                      "value": "active",
+                      "disabled": true,
+                      "description": "active | inactive"
+                    },
+                    {
+                      "key": "inventoryStatus",
+                      "value": "in-stock",
+                      "disabled": true,
+                      "description": "in-stock | out-of-stock"
+                    },
+                    {
+                      "key": "fromDate",
+                      "value": "2025-01-01",
+                      "disabled": true,
+                      "description": "createdAt >= start of day UTC"
+                    },
+                    {
+                      "key": "toDate",
+                      "value": "2025-12-31",
+                      "disabled": true,
+                      "description": "createdAt <= end of day UTC"
+                    },
+                    {
+                      "key": "categoryIds[0]",
+                      "value": "{{categoryId}}",
+                      "disabled": true,
+                      "description": "Bracket style; add categoryIds[1], categoryIds[2], … for more ids"
+                    },
+                    {
+                      "key": "categoryIds[1]",
+                      "value": "",
+                      "disabled": true,
+                      "description": "Second category id (optional)"
+                    }
+                  ]
+                },
+                "description": "GET /admin/products. Optional filters. categoryIds: use categoryIds[0], categoryIds[1], … or repeat categoryIds / comma-separated / JSON array string."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let jsonData = {};",
+                      "try { jsonData = pm.response.json(); } catch (e) {}",
+                      "const d = jsonData?.data;",
+                      "pm.test('List products returns paginated shape', function () {",
+                      "  pm.expect(pm.response.code).to.equal(200);",
+                      "  pm.expect(d).to.be.an('object');",
+                      "  pm.expect(d?.items).to.be.an('array');",
+                      "  pm.expect(d?.meta).to.be.an('object');",
+                      "  pm.expect(d?.meta?.total).to.be.a('number');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Product (multipart)",
               "request": {
                 "method": "POST",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Face Wash\",\n  \"description\": \"Gentle face wash\",\n  \"price\": 499,\n  \"stock\": 50\n}"
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "categoryId",
+                      "value": "{{categoryId}}",
+                      "type": "text",
+                      "description": "Run Admin > List Categories first, or paste a category Mongo id"
+                    },
+                    { "key": "title", "value": "Summer Jacket", "type": "text" },
+                    {
+                      "key": "description",
+                      "value": "<p>Gentle <strong>HTML</strong> description from editor</p>",
+                      "type": "text"
+                    },
+                    { "key": "inventoryStatus", "value": "in-stock", "type": "text" },
+                    { "key": "status", "value": "active", "type": "text" },
+                    { "key": "price", "value": "99.99", "type": "text" },
+                    { "key": "hasDiscount", "value": "true", "type": "text" },
+                    { "key": "discountInPercentage", "value": "10", "type": "text" },
+                    {
+                      "key": "medias",
+                      "description": "Repeat this row to attach multiple images/videos",
+                      "type": "file",
+                      "src": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "medias",
+                      "type": "file",
+                      "src": "",
+                      "disabled": true
+                    }
+                  ]
                 },
-                "url": "{{baseUrl}}/admin/products"
+                "url": "{{baseUrl}}/admin/products",
+                "description": "Required when hasDiscount is true: discountInPercentage (0–100). Omit medias rows or enable file rows to upload. Response data includes nested category and medias (ProductResource.adminDetail)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "let jsonData = {};",
+                      "try { jsonData = pm.response.json(); } catch (e) {}",
+                      "const id = jsonData?.data?.id;",
+                      "if (id) {",
+                      "  pm.collectionVariables.set('productId', id);",
+                      "  pm.test('productId saved from create', function () {",
+                      "    pm.expect(id).to.be.a('string').and.not.empty;",
+                      "  });",
+                      "}",
+                      "pm.test('Create product returns nested category and medias', function () {",
+                      "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                      "  pm.expect(jsonData?.data?.category).to.exist;",
+                      "  pm.expect(jsonData?.data?.medias).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Product Detail",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": "{{baseUrl}}/admin/products/{{productId}}",
+                "description": "Same response shape as create/update: nested category + medias. Includes inactive products. Set {{productId}} from create or list."
               }
             },
             {
-              "name": "Update Product",
+              "name": "Update Product (multipart)",
               "request": {
                 "method": "PATCH",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{admin_token}}" },
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
                 "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"price\": 450,\n  \"stock\": 100\n}"
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "title", "value": "Updated title", "type": "text", "disabled": true },
+                    { "key": "description", "value": "<p>Updated HTML</p>", "type": "text", "disabled": true },
+                    { "key": "price", "value": "89.99", "type": "text", "disabled": true },
+                    { "key": "hasDiscount", "value": "false", "type": "text", "disabled": true },
+                    {
+                      "key": "deleteMediaIds",
+                      "value": "[\"paste-media-object-id-here\"]",
+                      "type": "text",
+                      "disabled": true,
+                      "description": "JSON array or use deleteMediaIds[0]=id style — only ids already on this product"
+                    },
+                    {
+                      "key": "medias",
+                      "type": "file",
+                      "src": "",
+                      "disabled": true,
+                      "description": "Append new images/videos"
+                    }
+                  ]
                 },
-                "url": "{{baseUrl}}/admin/products/{{productId}}"
+                "url": "{{baseUrl}}/admin/products/{{productId}}",
+                "description": "All parts optional. Enable fields to patch. Response same shape as create (category + medias). Remove Content-Type header so Postman sets multipart boundary."
               }
             },
             {
@@ -284,7 +529,8 @@
               "name": "List Products",
               "request": {
                 "method": "GET",
-                "url": "{{baseUrl}}/products?gender=unisex&category=Skincare&size=M&color=Black&price=low_to_high&sort=desc"
+                "url": "{{baseUrl}}/products?gender=unisex&category=Skincare&size=M&color=Black&price=low_to_high&sort=desc",
+                "description": "GET /api/v1/products. Each item includes populated category and medias (id, path, mimeType, kind, …) like the product detail response."
               }
             },
             {
@@ -306,6 +552,14 @@
               "request": {
                 "method": "GET",
                 "url": "{{baseUrl}}/products/popular"
+              }
+            },
+            {
+              "name": "Get Product Detail",
+              "request": {
+                "method": "GET",
+                "url": "{{baseUrl}}/products/{{productId}}",
+                "description": "Storefront product page payload (category + medias). Inactive products return 404. Set {{productId}} from Admin create or paste an id."
               }
             }
           ]
@@ -333,7 +587,8 @@
                   { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
-                "url": "{{baseUrl}}/cart"
+                "url": "{{baseUrl}}/cart",
+                "description": "data: parent cart (cartableType user, cartableId = user id or sessionId) and items[] (cartableType cart, cartableId = parent cart id). Each item includes product with medias."
               }
             },
             {
@@ -347,9 +602,10 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+                  "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2,\n  \"size\": \"M\",\n  \"color\": \"Black\",\n  \"discount\": 10\n}"
                 },
-                "url": "{{baseUrl}}/cart/items"
+                "url": "{{baseUrl}}/cart/items",
+                "description": "Creates user cart row if needed, then upserts line by productId+size+color. Omit size/color for default variant. discount 0-100 optional (else product discount snapshotted when hasDiscount)."
               }
             },
             {
@@ -444,7 +700,8 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000/api/v1"
+      "value": "http://localhost:3000/api/v1",
+      "description": "Sync with .env PORT: http://localhost:<PORT>/api/v1 — default 3000 from repo .env"
     },
     {
       "key": "admin_token",
@@ -453,6 +710,11 @@
     {
       "key": "user_token",
       "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "description": "Filled by Admin > List Categories test, or paste manually before Create Product"
     },
     {
       "key": "productId",

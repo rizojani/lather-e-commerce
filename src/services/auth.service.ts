@@ -55,7 +55,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.signToken(user.id, user.email, user.role);
+    let profileMedia: Awaited<ReturnType<MediaService['findById']>> = null;
+    if (user.profileImage) {
+      profileMedia = await this.mediaService.findById(String(user.profileImage));
+    }
+
+    return {
+      accessToken: this.signToken(user.id, user.email, user.role),
+      user: this.mapUserForAuthResponse(user, profileMedia),
+    };
   }
 
   async sendForgotPasswordToken(email: string) {

@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { CartService } from '../services/cart.service';
+import { Types } from 'mongoose';
+import { effectiveUnitPrice, lineSubtotal } from '../common/utils/cart-line-price';
 import { CartRepository } from '../repositories/cart.repository';
 import { OrdersRepository } from '../repositories/orders.repository';
 import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
@@ -19,7 +20,6 @@ export class OrdersService {
   private readonly flatDeliveryCharge = 120;
 
   constructor(
-    private readonly cartService: CartService,
     private readonly cartRepository: CartRepository,
     private readonly ordersRepository: OrdersRepository,
     private readonly addressesService: AddressesService,
@@ -28,20 +28,59 @@ export class OrdersService {
 
   async placeOrder(owner: OrderOwner, payload: PlaceOrderRequest) {
     this.assertOwner(owner);
-    const cart = await this.cartService.getCart(owner);
-    if (!cart.items || cart.items.length === 0) {
+    const root = await this.cartRepository.findRootByOwner(owner);
+    if (!root?._id) {
+      throw new BadRequestException('Cart is empty');
+    }
+    const lines = await this.cartRepository.findCheckoutLinesByParentCartId(String(root._id));
+    if (!lines.length) {
       throw new BadRequestException('Cart is empty');
     }
 
-    const subtotal = cart.subtotal;
+    const subtotal = lines.reduce(
+      (sum, line) =>
+        sum + lineSubtotal(Number(line.quantity ?? 0), Number(line.price ?? 0), line.discount),
+      0,
+    );
     const tax = Number((subtotal * this.taxRate).toFixed(2));
     const deliveryCharge = subtotal > 3000 ? 0 : this.flatDeliveryCharge;
     const total = subtotal + tax + deliveryCharge;
 
+    const orderItems = lines.map((line) => {
+      const ref = line.productId;
+      let productId: Types.ObjectId;
+      if (ref instanceof Types.ObjectId) {
+        productId = ref;
+      } else if (ref && typeof ref === 'object' && '_id' in (ref as object)) {
+        const inner = (ref as { _id: unknown })._id;
+        const hex = inner instanceof Types.ObjectId ? inner.toHexString() : String(inner);
+        if (!Types.ObjectId.isValid(hex)) {
+          throw new BadRequestException('Cart line has invalid product reference');
+        }
+        productId = new Types.ObjectId(hex);
+      } else {
+        const hex = String(ref ?? '');
+        if (!Types.ObjectId.isValid(hex)) {
+          throw new BadRequestException('Cart line has invalid product reference');
+        }
+        productId = new Types.ObjectId(hex);
+      }
+      return {
+        product: productId,
+        quantity: Number(line.quantity ?? 0),
+        unitPrice: effectiveUnitPrice(Number(line.price ?? 0), line.discount),
+      };
+    });
+
+    const userRef =
+      owner.userId && Types.ObjectId.isValid(owner.userId.trim())
+        ? new Types.ObjectId(owner.userId.trim())
+        : undefined;
+
     const order = await this.ordersRepository.create({
-      user: owner.userId as never,
+      ...(userRef ? { user: userRef } : {}),
       sessionId: owner.sessionId,
-      items: cart.items,
+      items: orderItems,
       paymentMethod: payload.paymentMethod,
       subtotal,
       tax,
@@ -50,20 +89,17 @@ export class OrdersService {
       status: OrderStatus.CREATED,
     });
 
-    await this.addressesService.createOrderAddresses(order.id, {
+    const orderId = String(order._id);
+
+    await this.addressesService.createOrderAddresses(orderId, {
       contactInfo: payload.contactInfo,
       shippingAddress: payload.shippingAddress,
       billingAddress: payload.billingAddress,
     });
 
-    await this.paymentLogsService.createOrderPaymentLog(order.id, total, payload.paymentMethod);
+    await this.paymentLogsService.createOrderPaymentLog(orderId, total, payload.paymentMethod);
 
-    await this.cartRepository.upsertByOwner(owner, {
-      user: owner.userId as never,
-      sessionId: owner.sessionId,
-      items: [],
-      subtotal: 0,
-    });
+    await this.cartRepository.deleteAllLinesForParent(String(root._id));
     return order;
   }
 
