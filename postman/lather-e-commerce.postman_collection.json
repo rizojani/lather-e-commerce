@@ -478,16 +478,25 @@
           "name": "Orders",
           "item": [
             {
-              "name": "List All Orders",
+              "name": "List Orders (Paginated + Filters)",
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-                "url": "{{baseUrl}}/admin/orders",
-                "description": "Each order includes `items[]` from the `orderItems` collection (orderId, productId, quantity, unitPrice)."
+                "url": "{{baseUrl}}/admin/orders?page=1&limit=10&search=&status=&fromDate=&toDate=&paymentStatus=&userId=",
+                "description": "Paginated admin orders with optional filters. Empty query values are ignored by backend. Search matches user name/email, product title/name, and category name. Each row includes items, user, and paymentLog."
               }
             },
             {
-              "name": "Update Order Status",
+              "name": "Get Order By Id",
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+                "url": "{{baseUrl}}/admin/orders/{{orderId}}",
+                "description": "Admin detail response with OrderResource.adminOne shape: items with product/category/medias, embedded user, and paymentLog."
+              }
+            },
+            {
+              "name": "Patch Order (Status + Reason)",
               "request": {
                 "method": "PATCH",
                 "header": [
@@ -496,9 +505,10 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"status\": \"processing\"\n}"
+                  "raw": "{\n  \"status\": \"processing\",\n  \"reason\": \"Required only when status is cancelled or rejected\"\n}"
                 },
-                "url": "{{baseUrl}}/admin/orders/{{orderId}}/status"
+                "url": "{{baseUrl}}/admin/orders/{{orderId}}",
+                "description": "PATCH order status. Provide reason when status is cancelled or rejected."
               }
             },
             {

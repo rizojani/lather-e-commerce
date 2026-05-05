@@ -19,6 +19,7 @@ export enum OrderStatus {
   OUT_FOR_DELIVERY = 'out_for_delivery',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
+  REJECTED = 'rejected',
 }
 
 /** Order header only; line rows live in `OrderItem` (`orderItems` collection). */
@@ -47,6 +48,10 @@ export class Order {
 
   @Prop({ enum: OrderStatus, default: OrderStatus.CREATED })
   status!: OrderStatus;
+
+  /** Set when status is `cancelled` or `rejected` (admin update). */
+  @Prop()
+  statusReason?: string;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

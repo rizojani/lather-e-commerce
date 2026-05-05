@@ -1,5 +1,7 @@
 import { lineSubtotal } from '../common/utils/cart-line-price';
+import { PaymentLogResource } from './payment-log.resource';
 import { ProductResource } from './product.resource';
+import { UserResource } from './user.resource';
 
 /** Matches cart/storefront: string ids from ObjectIds, populated refs, or `{ _id }`. */
 function idOfRef(ref: unknown): string {
@@ -40,6 +42,7 @@ export class OrderResource {
       deliveryCharge: Number(order.deliveryCharge ?? 0),
       total: Number(order.total ?? 0),
       status: order.status ?? null,
+      statusReason: order.statusReason ?? null,
       items,
       createdAt: order.createdAt ?? null,
       updatedAt: order.updatedAt ?? null,
@@ -54,6 +57,21 @@ export class OrderResource {
 
   static collection(orders: Array<Record<string, unknown>>) {
     return orders.map((row) => OrderResource.fromMerged(row));
+  }
+
+  /** Admin: merged aggregation/service row with `user`, `paymentLog`, `items`. */
+  static adminOne(row: Record<string, unknown>) {
+    const { items, user, paymentLog, ...rest } = row;
+    const base = OrderResource.one(rest, Array.isArray(items) ? (items as unknown[]) : []);
+    return {
+      ...base,
+      user: UserResource.forOrder(user),
+      paymentLog: PaymentLogResource.one(paymentLog),
+    };
+  }
+
+  static adminCollection(rows: Array<Record<string, unknown>>) {
+    return rows.map((row) => OrderResource.adminOne(row));
   }
 
   /**

@@ -7,6 +7,10 @@ import { OrdersRepository } from '../repositories/orders.repository';
 import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
 import { OrderStatus } from '../schemas/order.schema';
 import type { OrderDocument } from '../schemas/order.schema';
+import { ListAdminOrdersQueryDto } from '../dto/orders/list-admin-orders.orders.dto';
+import { PatchAdminOrderDto } from '../dto/orders/patch-admin-order.orders.dto';
+import { PaymentLogResource } from '../resources/payment-log.resource';
+import { UsersRepository } from '../repositories/users.repository';
 import { AddressesService } from './addresses.service';
 import { PaymentLogsService } from './payment-logs.service';
 import { MarkOrderPaymentPaidRequest } from '../dto/orders/mark-order-payment-paid.orders.dto';
@@ -27,6 +31,7 @@ export class OrdersService {
     private readonly orderItemsRepository: OrderItemsRepository,
     private readonly addressesService: AddressesService,
     private readonly paymentLogsService: PaymentLogsService,
+    private readonly usersRepository: UsersRepository,
   ) {}
 
   async placeOrder(owner: OrderOwner, payload: PlaceOrderRequest) {
@@ -146,6 +151,92 @@ export class OrdersService {
     return rows as Array<Record<string, unknown>>;
   }
 
+  async adminListOrders(query: ListAdminOrdersQueryDto) {
+    const page = query.page && query.page > 0 ? query.page : 1;
+    const limit = Math.min(query.limit && query.limit > 0 ? query.limit : 10, 100);
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+    if (query.fromDate) {
+      const d = new Date(query.fromDate);
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCHours(0, 0, 0, 0);
+        fromDate = d;
+      }
+    }
+    if (query.toDate) {
+      const d = new Date(query.toDate);
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCHours(23, 59, 59, 999);
+        toDate = d;
+      }
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      const t = fromDate;
+      fromDate = toDate;
+      toDate = t;
+    }
+    const { data, total } = await this.ordersRepository.adminOrdersPaginated({
+      page,
+      limit,
+      search: query.search,
+      status: query.status,
+      fromDate,
+      toDate,
+      paymentStatus: query.paymentStatus,
+      userId: query.userId,
+    });
+    return { data, total, page, limit };
+  }
+
+  /** Admin: full order row for `OrderResource.adminOne` (parallel loads, no N+1). */
+  async getOrderAdminById(orderId: string): Promise<Record<string, unknown>> {
+    const id = orderId.trim();
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid order id');
+    }
+    const order = await this.ordersRepository.findById(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const plain = order.toObject({ virtuals: true }) as unknown as Record<string, unknown>;
+    const [items, paymentLog, user] = await Promise.all([
+      this.orderItemsRepository.aggregateLinesForOrderDetail(id),
+      this.paymentLogsService.findOneByOrderId(id),
+      order.user
+        ? this.usersRepository.findByIdForAdmin(String(order.user))
+        : Promise.resolve(null),
+    ]);
+    return {
+      ...plain,
+      items,
+      user: user ?? null,
+      paymentLog: paymentLog ?? null,
+    };
+  }
+
+  async patchOrderAdmin(orderId: string, dto: PatchAdminOrderDto): Promise<Record<string, unknown>> {
+    const id = orderId.trim();
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid order id');
+    }
+    const existing = await this.ordersRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Order not found');
+    }
+    const needsReason =
+      dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.REJECTED;
+    const reasonTrim = (dto.reason ?? '').trim();
+    if (needsReason && !reasonTrim) {
+      throw new BadRequestException('reason is required when status is cancelled or rejected');
+    }
+    const statusReason = needsReason ? reasonTrim : null;
+    const updated = await this.ordersRepository.updateOrderAdmin(id, dto.status, statusReason);
+    if (!updated) {
+      throw new NotFoundException('Order not found');
+    }
+    return this.getOrderAdminById(id);
+  }
+
   async updateOrderStatus(orderId: string, status: OrderStatus) {
     const updated = await this.ordersRepository.updateStatus(orderId, status);
     if (!updated) {
@@ -169,9 +260,12 @@ export class OrdersService {
       await this.ordersRepository.updateStatus(orderId, OrderStatus.PROCESSING);
     }
 
+    const logPlain = paymentLog.toObject
+      ? paymentLog.toObject({ virtuals: true })
+      : (paymentLog as unknown as Record<string, unknown>);
     return {
       message: 'Payment marked as paid successfully',
-      data: paymentLog,
+      data: PaymentLogResource.one(logPlain),
     };
   }
 

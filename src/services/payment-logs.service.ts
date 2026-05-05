@@ -18,10 +18,26 @@ export class PaymentLogsService {
     });
   }
 
+  findOneByOrderId(orderId: string) {
+    if (!Types.ObjectId.isValid(orderId.trim())) {
+      return Promise.resolve(null);
+    }
+    return this.paymentLogModel
+      .findOne({
+        modelType: PaymentLogOwnerType.ORDER,
+        modelId: new Types.ObjectId(orderId.trim()),
+      })
+      .lean()
+      .exec();
+  }
+
   markOrderPaymentPaid(orderId: string, transactionId?: string) {
     return this.paymentLogModel
       .findOneAndUpdate(
-        { modelType: PaymentLogOwnerType.ORDER, modelId: orderId },
+        {
+          modelType: PaymentLogOwnerType.ORDER,
+          modelId: new Types.ObjectId(orderId.trim()),
+        },
         {
           status: PaymentStatus.PAID,
           ...(transactionId ? { transactionId } : {}),

@@ -9,6 +9,12 @@ export class User {
   @Prop({ required: true })
   name!: string;
 
+  @Prop()
+  firstName?: string;
+
+  @Prop()
+  lastName?: string;
+
   @Prop({ required: true, unique: true, lowercase: true })
   email!: string;
 

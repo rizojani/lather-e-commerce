@@ -9,4 +9,20 @@ export class UserResource {
       role: user.role,
     };
   }
+
+  /** Embedded customer on admin order responses (no secrets). */
+  static forOrder(user: unknown) {
+    if (user == null || typeof user !== 'object') {
+      return null;
+    }
+    const u = user as Record<string, unknown>;
+    return {
+      id: String(u._id ?? u.id ?? ''),
+      name: u.name ?? null,
+      firstName: u.firstName ?? null,
+      lastName: u.lastName ?? null,
+      email: u.email ?? null,
+      role: u.role ?? null,
+    };
+  }
 }

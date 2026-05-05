@@ -18,4 +18,13 @@ export class UsersRepository {
   findById(id: string) {
     return this.model.findById(id).exec();
   }
+
+  /** Safe fields for admin order / embed (no password or reset tokens). */
+  findByIdForAdmin(id: string) {
+    return this.model
+      .findById(id)
+      .select('-password -passwordResetToken -passwordResetTokenExpiresAt')
+      .lean()
+      .exec();
+  }
 }

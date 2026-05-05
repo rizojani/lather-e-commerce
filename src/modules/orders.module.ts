@@ -9,12 +9,14 @@ import { OrdersService } from '../services/orders.service';
 import { Order, OrderSchema } from '../schemas/order.schema';
 import { OrderItem, OrderItemSchema } from '../schemas/order-item.schema';
 import { PaymentLogsModule } from './payment-logs.module';
+import { UsersModule } from './users.module';
 import { OrderItemsRepository } from '../repositories/order-items.repository';
 
 @Module({
   imports: [
     CartModule,
     AddressesModule,
+    UsersModule,
     PaymentLogsModule,
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },
