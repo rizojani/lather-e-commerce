@@ -32,3 +32,13 @@ export function normalizeProductMediaRefs(refs: unknown[] | undefined): string[]
   }
   return ids;
 }
+
+/** Attach full media rows in product ref order (after a single batched media query). */
+export function resolveMediaRowsInOrder(
+  orderedMediaIds: string[],
+  byId: Map<string, Record<string, unknown>>,
+): Record<string, unknown>[] {
+  return orderedMediaIds
+    .map((id) => byId.get(id))
+    .filter((x): x is Record<string, unknown> => x !== undefined);
+}

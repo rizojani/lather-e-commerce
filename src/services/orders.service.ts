@@ -1,10 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { effectiveUnitPrice, lineSubtotal } from '../common/utils/cart-line-price';
 import { CartRepository } from '../repositories/cart.repository';
+import { OrderItemsRepository } from '../repositories/order-items.repository';
 import { OrdersRepository } from '../repositories/orders.repository';
 import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
 import { OrderStatus } from '../schemas/order.schema';
+import type { OrderDocument } from '../schemas/order.schema';
 import { AddressesService } from './addresses.service';
 import { PaymentLogsService } from './payment-logs.service';
 import { MarkOrderPaymentPaidRequest } from '../dto/orders/mark-order-payment-paid.orders.dto';
@@ -22,6 +24,7 @@ export class OrdersService {
   constructor(
     private readonly cartRepository: CartRepository,
     private readonly ordersRepository: OrdersRepository,
+    private readonly orderItemsRepository: OrderItemsRepository,
     private readonly addressesService: AddressesService,
     private readonly paymentLogsService: PaymentLogsService,
   ) {}
@@ -46,7 +49,7 @@ export class OrdersService {
     const deliveryCharge = subtotal > 3000 ? 0 : this.flatDeliveryCharge;
     const total = subtotal + tax + deliveryCharge;
 
-    const orderItems = lines.map((line) => {
+    const lineInputs = lines.map((line) => {
       const ref = line.productId;
       let productId: Types.ObjectId;
       if (ref instanceof Types.ObjectId) {
@@ -65,10 +68,17 @@ export class OrdersService {
         }
         productId = new Types.ObjectId(hex);
       }
+      const listPrice = Number(line.price ?? 0);
+      const disc =
+        line.discount != null && !Number.isNaN(Number(line.discount)) ? Number(line.discount) : undefined;
       return {
-        product: productId,
+        productId,
         quantity: Number(line.quantity ?? 0),
-        unitPrice: effectiveUnitPrice(Number(line.price ?? 0), line.discount),
+        unitPrice: effectiveUnitPrice(listPrice, line.discount),
+        size: String(line.size ?? '').trim(),
+        color: String(line.color ?? '').trim(),
+        price: listPrice,
+        discount: disc,
       };
     });
 
@@ -80,7 +90,6 @@ export class OrdersService {
     const order = await this.ordersRepository.create({
       ...(userRef ? { user: userRef } : {}),
       sessionId: owner.sessionId,
-      items: orderItems,
       paymentMethod: payload.paymentMethod,
       subtotal,
       tax,
@@ -91,6 +100,8 @@ export class OrdersService {
 
     const orderId = String(order._id);
 
+    const insertedItems = await this.orderItemsRepository.createManyForOrder(orderId, lineInputs);
+
     await this.addressesService.createOrderAddresses(orderId, {
       contactInfo: payload.contactInfo,
       shippingAddress: payload.shippingAddress,
@@ -100,16 +111,39 @@ export class OrdersService {
     await this.paymentLogsService.createOrderPaymentLog(orderId, total, payload.paymentMethod);
 
     await this.cartRepository.deleteAllLinesForParent(String(root._id));
-    return order;
+
+    return {
+      ...(order.toObject({ virtuals: true }) as unknown as Record<string, unknown>),
+      items: insertedItems.map((i) => i.toObject({ virtuals: true })),
+    };
   }
 
-  myOrders(owner: OrderOwner) {
+  async myOrders(owner: OrderOwner) {
     this.assertOwner(owner);
-    return this.ordersRepository.findByOwner(owner);
+    const rows = await this.ordersRepository.findByOwnerWithLineItems(owner);
+    return rows as Array<Record<string, unknown>>;
   }
 
-  listAll() {
-    return this.ordersRepository.listAll();
+  /** Order must belong to JWT user or guest session (same rules as cart). */
+  async getOrderByIdForOwner(owner: OrderOwner, orderId: string) {
+    this.assertOwner(owner);
+    if (!Types.ObjectId.isValid(orderId.trim())) {
+      throw new BadRequestException('Invalid order id');
+    }
+    const order = await this.ordersRepository.findById(orderId.trim());
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (!this.orderBelongsToOwner(order, owner)) {
+      throw new NotFoundException('Order not found');
+    }
+    const items = await this.orderItemsRepository.aggregateLinesForOrderDetail(orderId.trim());
+    return { order, items };
+  }
+
+  async listAll() {
+    const rows = await this.ordersRepository.listAllWithLineItems();
+    return rows as Array<Record<string, unknown>>;
   }
 
   async updateOrderStatus(orderId: string, status: OrderStatus) {
@@ -142,7 +176,17 @@ export class OrdersService {
   }
 
   trendingCurrentYear() {
-    return this.ordersRepository.trendingCurrentYear();
+    return this.orderItemsRepository.aggregateTrendingProductsCurrentYear();
+  }
+
+  private orderBelongsToOwner(order: OrderDocument, owner: OrderOwner): boolean {
+    if (owner.userId?.trim()) {
+      return order.user != null && String(order.user) === owner.userId.trim();
+    }
+    if (owner.sessionId?.trim()) {
+      return order.sessionId != null && order.sessionId === owner.sessionId.trim();
+    }
+    return false;
   }
 
   private assertOwner(owner: OrderOwner) {

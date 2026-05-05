@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { normalizeProductMediaRefs } from '../common/utils/product-media-refs';
+import {
+  normalizeProductMediaRefs,
+  resolveMediaRowsInOrder,
+} from '../common/utils/product-media-refs';
 import { CartRepository, CartOwnerKey } from '../repositories/cart.repository';
 import { ProductsRepository } from '../repositories/products.repository';
 import { AddOrUpdateCartItemDto } from '../dto/cart/update-cart.cart.dto';
@@ -111,17 +114,23 @@ export class CartService {
     return p as Record<string, unknown>;
   }
 
+  /** One media query for all cart lines (no N+1). */
   private async hydrateLinesProductMedia(lines: CartDocument[]): Promise<Record<string, unknown>[]> {
-    return Promise.all(
-      lines.map(async (line) => {
-        const plain = line.toObject({ virtuals: true }) as Record<string, unknown>;
-        const pid = plain.productId;
-        const pPlain = this.toPlainProduct(pid);
-        if (!pPlain) return plain;
-        const mediaIds = normalizeProductMediaRefs(pPlain.media as unknown[]);
-        const media = mediaIds.length ? await this.mediaService.findByIdsOrdered(mediaIds) : [];
-        return { ...plain, productId: { ...pPlain, media } };
-      }),
-    );
+    const plines = lines.map((line) => line.toObject({ virtuals: true }) as Record<string, unknown>);
+    const perLineMediaIds = plines.map((plain) => {
+      const pPlain = this.toPlainProduct(plain.productId);
+      return pPlain ? normalizeProductMediaRefs(pPlain.media as unknown[]) : [];
+    });
+    const allMediaIds = [...new Set(perLineMediaIds.flat())];
+    const mediaMap =
+      allMediaIds.length > 0 ? await this.mediaService.findByIdsIndexed(allMediaIds) : new Map();
+
+    return plines.map((plain, i) => {
+      const pPlain = this.toPlainProduct(plain.productId);
+      if (!pPlain) return plain;
+      const orderedIds = perLineMediaIds[i];
+      const media = resolveMediaRowsInOrder(orderedIds, mediaMap);
+      return { ...plain, productId: { ...pPlain, media } };
+    });
   }
 }

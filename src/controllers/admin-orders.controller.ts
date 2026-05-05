@@ -6,6 +6,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '../common/types/roles.enum';
 import { MarkOrderPaymentPaidRequest } from '../dto/orders/mark-order-payment-paid.orders.dto';
 import { UpdateOrderStatusRequest } from '../dto/orders/update-order-status.orders.dto';
+import { OrderResource } from '../resources/order.resource';
 import { OrdersService } from '../services/orders.service';
 
 @Controller('admin/orders')
@@ -18,8 +19,9 @@ export class AdminOrdersController {
 
   @Get()
   @ApiOperation({ summary: 'List all orders (admin)' })
-  listAll() {
-    return this.ordersService.listAll();
+  async listAll() {
+    const rows = await this.ordersService.listAll();
+    return OrderResource.collection(rows as Array<Record<string, unknown>>);
   }
 
   @Patch(':id/status')

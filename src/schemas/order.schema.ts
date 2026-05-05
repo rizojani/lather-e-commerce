@@ -21,17 +21,7 @@ export enum OrderStatus {
   CANCELLED = 'cancelled',
 }
 
-class OrderItem {
-  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
-  product!: Types.ObjectId;
-
-  @Prop({ required: true })
-  quantity!: number;
-
-  @Prop({ required: true })
-  unitPrice!: number;
-}
-
+/** Order header only; line rows live in `OrderItem` (`orderItems` collection). */
 @Schema({ timestamps: true })
 export class Order {
   @Prop({ type: Types.ObjectId, ref: 'User' })
@@ -39,9 +29,6 @@ export class Order {
 
   @Prop()
   sessionId?: string;
-
-  @Prop({ type: [OrderItem], default: [] })
-  items!: OrderItem[];
 
   @Prop({ enum: PaymentMethod, required: true })
   paymentMethod!: PaymentMethod;

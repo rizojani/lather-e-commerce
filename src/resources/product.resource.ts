@@ -6,12 +6,28 @@ function inferMediaKind(mimeType: string): 'image' | 'video' {
   return 'image';
 }
 
-function mapCategoryField(cat: unknown) {
-  if (cat && typeof cat === 'object' && 'name' in (cat as object)) {
-    return CategoryResource.one(cat as Record<string, unknown>);
+/** Category subdoc, ObjectId ref, or id string → API category shape (same rules everywhere). */
+export function mapCategoryField(cat: unknown) {
+  if (cat && typeof cat === 'object' && !Array.isArray(cat)) {
+    const o = cat as Record<string, unknown>;
+    if ('name' in o || '_id' in o || 'id' in o) {
+      return CategoryResource.one(o);
+    }
   }
   if (cat === undefined || cat === null) return null;
   return { id: String(cat) };
+}
+
+function categoryIdFromMapped(
+  mapped: ReturnType<typeof mapCategoryField>,
+  item: Record<string, unknown>,
+): string {
+  if (mapped && typeof mapped === 'object' && mapped.id != null && String(mapped.id).length > 0) {
+    return String(mapped.id);
+  }
+  const c = item.category;
+  if (typeof c === 'string') return c;
+  return '';
 }
 
 export class ProductResource {
@@ -47,19 +63,14 @@ export class ProductResource {
 
   /** Admin create / detail: nested category + medias (Laravel-style relations). */
   static adminDetail(item: Record<string, unknown>) {
-    const category = item.category;
     const rawMedia = item.media;
     const medias = Array.isArray(rawMedia) ? rawMedia.map((x) => ProductResource.mediaEntry(x)) : [];
 
-    const categoryObj = category && typeof category === 'object' && 'name' in (category as object)
-      ? CategoryResource.one(category as Record<string, unknown>)
-      : null;
+    const categoryObj = mapCategoryField(item.category);
 
     return {
       id: item.id ?? String(item._id ?? ''),
-      categoryId: categoryObj
-        ? categoryObj.id
-        : String(category ?? ''),
+      categoryId: categoryIdFromMapped(categoryObj, item),
       title: item.title ?? item.name ?? '',
       description: item.description,
       inventoryStatus: item.inventoryStatus ?? null,
@@ -75,12 +86,15 @@ export class ProductResource {
   }
 
   static collection(products: Array<Record<string, unknown>>) {
-    return products.map((item) => ({
+    return products.map((item) => {
+      const categoryMapped = mapCategoryField(item.category);
+      return {
       id: item.id ?? String(item._id ?? ''),
       title: item.title ?? item.name,
       name: item.name ?? item.title,
       description: item.description,
-      category: mapCategoryField(item.category),
+      categoryId: categoryIdFromMapped(categoryMapped, item),
+      category: categoryMapped,
       inventoryStatus: item.inventoryStatus ?? null,
       status: item.status ?? null,
       gender: item.gender,
@@ -95,17 +109,21 @@ export class ProductResource {
       stock: item.stock,
       medias: Array.isArray(item.media) ? item.media.map((x) => ProductResource.mediaEntry(x)) : [],
       createdAt: item.createdAt,
-    }));
+    };
+    });
   }
 
   /** Admin paginated list: same as `collection` but no `medias` (media relation not loaded). */
   static collectionAdminList(products: Array<Record<string, unknown>>) {
-    return products.map((item) => ({
+    return products.map((item) => {
+      const categoryMapped = mapCategoryField(item.category);
+      return {
       id: item.id ?? String(item._id ?? ''),
       title: item.title ?? item.name,
       name: item.name ?? item.title,
       description: item.description,
-      category: mapCategoryField(item.category),
+      categoryId: categoryIdFromMapped(categoryMapped, item),
+      category: categoryMapped,
       inventoryStatus: item.inventoryStatus ?? null,
       status: item.status ?? null,
       gender: item.gender,
@@ -119,6 +137,7 @@ export class ProductResource {
       reviewCount: item.reviewCount,
       stock: item.stock,
       createdAt: item.createdAt,
-    }));
+    };
+    });
   }
 }

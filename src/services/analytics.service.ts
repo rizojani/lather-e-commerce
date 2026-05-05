@@ -16,7 +16,10 @@ export class AnalyticsService {
       this.productsService.popular(),
     ]);
 
-    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalSales = orders.reduce(
+      (sum, order) => sum + Number((order as Record<string, unknown>)['total'] ?? 0),
+      0,
+    );
 
     return {
       totalOrders: orders.length,

@@ -482,7 +482,8 @@
               "request": {
                 "method": "GET",
                 "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
-                "url": "{{baseUrl}}/admin/orders"
+                "url": "{{baseUrl}}/admin/orders",
+                "description": "Each order includes `items[]` from the `orderItems` collection (orderId, productId, quantity, unitPrice)."
               }
             },
             {
@@ -637,7 +638,8 @@
                   "mode": "raw",
                   "raw": "{\n  \"paymentMethod\": \"cod\",\n  \"contactInfo\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"+923001234567\",\n    \"email\": \"john@example.com\",\n    \"addressLine1\": \"Street 12, House 44\",\n    \"addressLine2\": \"Near central park\",\n    \"city\": \"Karachi\",\n    \"state\": \"Sindh\",\n    \"country\": \"Pakistan\",\n    \"postalCode\": \"74200\"\n  },\n  \"shippingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"+923001234567\",\n    \"email\": \"john@example.com\",\n    \"addressLine1\": \"Street 12, House 44\",\n    \"addressLine2\": \"Near central park\",\n    \"city\": \"Karachi\",\n    \"state\": \"Sindh\",\n    \"country\": \"Pakistan\",\n    \"postalCode\": \"74200\"\n  },\n  \"billingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phone\": \"+923001234567\",\n    \"email\": \"john@example.com\",\n    \"addressLine1\": \"Street 12, House 44\",\n    \"addressLine2\": \"Near central park\",\n    \"city\": \"Karachi\",\n    \"state\": \"Sindh\",\n    \"country\": \"Pakistan\",\n    \"postalCode\": \"74200\"\n  }\n}"
                 },
-                "url": "{{baseUrl}}/orders"
+                "url": "{{baseUrl}}/orders",
+                "description": "Creates Order header, then OrderItem rows (`orderItems` collection), then addresses + payment log, clears cart. Response `data` includes order totals plus `items[]` (each: orderId, productId, quantity, unitPrice). Ensure cart has lines before calling."
               }
             },
             {
@@ -648,7 +650,20 @@
                   { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
-                "url": "{{baseUrl}}/orders/my"
+                "url": "{{baseUrl}}/orders/my",
+                "description": "Each order in `data` includes `items[]` loaded from `orderItems` (not embedded on Order doc). Response shaped by OrderResource."
+              }
+            },
+            {
+              "name": "Get Order By Id",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{user_token}}" },
+                  { "key": "sessionId", "value": "{{sessionId}}" }
+                ],
+                "url": "{{baseUrl}}/orders/{{orderId}}",
+                "description": "Same OrderResource shape; each `items[]` entry includes `product` with `medias` (loaded like storefront). Owner-only."
               }
             }
           ]

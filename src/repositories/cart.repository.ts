@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Media } from '../schemas/media.schema';
 import { Cart, CartDocument, CartableType } from '../schemas/cart.schema';
 
 export interface CartOwnerKey {
@@ -15,9 +14,10 @@ function ownerCartableId(owner: CartOwnerKey): string {
   return String(id).trim();
 }
 
+/** Product + category only; medias loaded once via `MediaService.findByIdsIndexed` in `CartService` (no duplicate media query). */
 const productPopulate = {
   path: 'productId',
-  populate: { path: 'media', model: Media.name },
+  populate: { path: 'category' },
 };
 
 @Injectable()
@@ -52,7 +52,7 @@ export class CartRepository {
   findCheckoutLinesByParentCartId(parentCartId: string) {
     return this.model
       .find({ cartableType: CartableType.CART, cartableId: parentCartId })
-      .select('quantity price discount productId')
+      .select('quantity price discount productId size color')
       .sort({ createdAt: 1 })
       .lean()
       .exec();

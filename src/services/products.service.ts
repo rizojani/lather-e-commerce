@@ -86,13 +86,17 @@ export class ProductsService {
       reviewCount: 0,
     });
 
-    for (const file of files) {
-      const m = await this.mediaService.create({
-        file,
-        modelType: MediaOwnerType.PRODUCT,
-        modelId: product.id,
-        type: MediaType.PRODUCT,
-      });
+    const newMedia = await Promise.all(
+      files.map((file) =>
+        this.mediaService.create({
+          file,
+          modelType: MediaOwnerType.PRODUCT,
+          modelId: product.id,
+          type: MediaType.PRODUCT,
+        }),
+      ),
+    );
+    for (const m of newMedia) {
       product.media.push(m._id);
     }
     await product.save();
@@ -206,13 +210,17 @@ export class ProductsService {
         : undefined;
     product.salePrice = hasDiscount ? salePrice : undefined;
 
-    for (const file of files) {
-      const m = await this.mediaService.create({
-        file,
-        modelType: MediaOwnerType.PRODUCT,
-        modelId: product.id,
-        type: MediaType.PRODUCT,
-      });
+    const newMedia = await Promise.all(
+      files.map((file) =>
+        this.mediaService.create({
+          file,
+          modelType: MediaOwnerType.PRODUCT,
+          modelId: product.id,
+          type: MediaType.PRODUCT,
+        }),
+      ),
+    );
+    for (const m of newMedia) {
       product.media.push(m._id);
     }
 

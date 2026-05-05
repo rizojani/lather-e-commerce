@@ -36,14 +36,25 @@ export class MediaService {
 
   /** Full media rows in the same order as `ids` (for responses when populate is unreliable). */
   async findByIdsOrdered(ids: string[]): Promise<Array<Record<string, unknown>>> {
-    const valid = ids.map((id) => id.trim()).filter((id) => Types.ObjectId.isValid(id));
-    if (valid.length === 0) {
-      return [];
+    const map = await this.findByIdsIndexed(ids);
+    const valid = ids
+      .map((id) => id.trim())
+      .filter((id) => Types.ObjectId.isValid(id));
+    return valid.map((id) => map.get(id)).filter((x): x is Record<string, unknown> => x !== undefined);
+  }
+
+  /**
+   * Single DB query for all media ids. Build per-entity ordered arrays with:
+   * `orderedIds.map((id) => map.get(id)).filter(Boolean)`.
+   */
+  async findByIdsIndexed(ids: string[]): Promise<Map<string, Record<string, unknown>>> {
+    const unique = [...new Set(ids.map((id) => id.trim()).filter((id) => Types.ObjectId.isValid(id)))];
+    if (unique.length === 0) {
+      return new Map();
     }
-    const objectIds = valid.map((id) => new Types.ObjectId(id));
+    const objectIds = unique.map((id) => new Types.ObjectId(id));
     const docs = await this.mediaModel.find({ _id: { $in: objectIds } }).lean().exec();
-    const byId = new Map(docs.map((d) => [String(d._id), d as unknown as Record<string, unknown>]));
-    return valid.map((id) => byId.get(id)).filter((x): x is Record<string, unknown> => x !== undefined);
+    return new Map(docs.map((d) => [String(d._id), d as unknown as Record<string, unknown>]));
   }
 
   /** Delete media rows and try to remove files from disk (best-effort). */

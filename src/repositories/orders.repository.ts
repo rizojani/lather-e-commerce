@@ -1,12 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, type PipelineStage } from 'mongoose';
 import { Order, OrderDocument } from '../schemas/order.schema';
 
 interface OrderOwner {
   userId?: string;
   sessionId?: string;
 }
+
+/** Single round-trip: orders + line rows (`orderItems`), sorted per order. */
+const ORDER_ITEMS_LOOKUP = {
+  $lookup: {
+    from: 'orderItems',
+    let: { oid: '$_id' },
+    pipeline: [
+      {
+        $match: {
+          $expr: {
+            $eq: [{ $toString: { $ifNull: ['$orderId', ''] } }, { $toString: '$$oid' }],
+          },
+        },
+      },
+      { $sort: { createdAt: 1 } },
+    ],
+    as: 'items',
+  },
+};
 
 @Injectable()
 export class OrdersRepository {
@@ -29,23 +48,23 @@ export class OrdersRepository {
     return this.model.find(filter).sort({ createdAt: -1 }).exec();
   }
 
+  /** Header rows + embedded `items` in one query (no second fetch + join in app code). */
+  findByOwnerWithLineItems(owner: OrderOwner) {
+    const filter = owner.userId ? { user: owner.userId } : { sessionId: owner.sessionId };
+    return this.model
+      .aggregate(
+        [{ $match: filter }, { $sort: { createdAt: -1 } }, ORDER_ITEMS_LOOKUP] as PipelineStage[],
+      )
+      .exec();
+  }
+
   listAll() {
     return this.model.find().sort({ createdAt: -1 }).exec();
   }
 
-  async trendingCurrentYear() {
-    const start = new Date(new Date().getFullYear(), 0, 1);
-    return this.model.aggregate([
-      { $match: { createdAt: { $gte: start } } },
-      { $unwind: '$items' },
-      {
-        $group: {
-          _id: '$items.product',
-          orderedQty: { $sum: '$items.quantity' },
-        },
-      },
-      { $sort: { orderedQty: -1 } },
-      { $limit: 12 },
-    ]);
+  listAllWithLineItems() {
+    return this.model
+      .aggregate([{ $sort: { createdAt: -1 } }, ORDER_ITEMS_LOOKUP] as PipelineStage[])
+      .exec();
   }
 }
