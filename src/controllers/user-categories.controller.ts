@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { CategoriesService } from '../services/categories.service';
 
 @Controller('categories')
@@ -9,6 +10,7 @@ export class UserCategoriesController {
 
   @Get()
   @ApiOperation({ summary: 'List categories' })
+  @ResponseMessage('Categories fetched successfully')
   list() {
     return this.categoriesService.list();
   }

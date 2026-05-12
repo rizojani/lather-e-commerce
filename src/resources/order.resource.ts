@@ -24,9 +24,50 @@ function toPlain(input: unknown): Record<string, unknown> {
   return input as Record<string, unknown>;
 }
 
+function plainOrNull(input: unknown): Record<string, unknown> | null {
+  if (input == null || typeof input !== 'object') return null;
+  const obj = input as { toObject?: (opts?: { virtuals?: boolean }) => Record<string, unknown> };
+  if (typeof obj.toObject === 'function') return obj.toObject({ virtuals: true });
+  return input as Record<string, unknown>;
+}
+
+function mapAddressFull(input: unknown) {
+  const addr = plainOrNull(input);
+  if (!addr) return null;
+  return {
+    id: addr._id != null ? String(addr._id) : addr.id != null ? String(addr.id) : '',
+    fullName: addr.fullName ?? '',
+    phone: addr.phone ?? '',
+    email: addr.email ?? null,
+    addressLine1: addr.addressLine1 ?? null,
+    addressLine2: addr.addressLine2 ?? null,
+    city: addr.city ?? null,
+    state: addr.state ?? null,
+    country: addr.country ?? null,
+    postalCode: addr.postalCode ?? null,
+  };
+}
+
+function mapContactInfo(input: unknown) {
+  const addr = plainOrNull(input);
+  if (!addr) return null;
+  return {
+    id: addr._id != null ? String(addr._id) : addr.id != null ? String(addr.id) : '',
+    fullName: addr.fullName ?? '',
+    phone: addr.phone ?? '',
+    email: addr.email ?? null,
+  };
+}
+
+export interface OrderAddressBundle {
+  contactInfo?: unknown;
+  shippingAddress?: unknown;
+  billingAddress?: unknown;
+}
+
 export class OrderResource {
   /** Single order header + line items (consistent API shape). */
-  static one(orderHeader: unknown, itemsRaw: unknown[]) {
+  static one(orderHeader: unknown, itemsRaw: unknown[], addresses?: OrderAddressBundle | null) {
     const order = toPlain(orderHeader);
     const items = Array.isArray(itemsRaw)
       ? itemsRaw.map((row) => OrderResource.itemLine(toPlain(row)))
@@ -43,6 +84,9 @@ export class OrderResource {
       total: Number(order.total ?? 0),
       status: order.status ?? null,
       statusReason: order.statusReason ?? null,
+      contactInfo: mapContactInfo(addresses?.contactInfo),
+      shippingAddress: mapAddressFull(addresses?.shippingAddress),
+      billingAddress: mapAddressFull(addresses?.billingAddress),
       items,
       createdAt: order.createdAt ?? null,
       updatedAt: order.updatedAt ?? null,
@@ -51,8 +95,12 @@ export class OrderResource {
 
   /** From `{ ...order, items: [...] }` rows (e.g. list endpoints). */
   static fromMerged(orderWithItems: Record<string, unknown>) {
-    const { items, ...rest } = orderWithItems;
-    return OrderResource.one(rest, Array.isArray(items) ? items : []);
+    const { items, contactInfo, shippingAddress, billingAddress, ...rest } = orderWithItems;
+    return OrderResource.one(rest, Array.isArray(items) ? items : [], {
+      contactInfo,
+      shippingAddress,
+      billingAddress,
+    });
   }
 
   static collection(orders: Array<Record<string, unknown>>) {
@@ -61,8 +109,12 @@ export class OrderResource {
 
   /** Admin: merged aggregation/service row with `user`, `paymentLog`, `items`. */
   static adminOne(row: Record<string, unknown>) {
-    const { items, user, paymentLog, ...rest } = row;
-    const base = OrderResource.one(rest, Array.isArray(items) ? (items as unknown[]) : []);
+    const { items, user, paymentLog, contactInfo, shippingAddress, billingAddress, ...rest } = row;
+    const base = OrderResource.one(
+      rest,
+      Array.isArray(items) ? (items as unknown[]) : [],
+      { contactInfo, shippingAddress, billingAddress },
+    );
     return {
       ...base,
       user: UserResource.forOrder(user),

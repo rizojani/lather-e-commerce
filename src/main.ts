@@ -1,8 +1,10 @@
 import * as nodeCrypto from 'node:crypto';
+import { join } from 'path';
 import { readFileSync } from 'fs';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface';
 import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
@@ -31,7 +33,7 @@ async function bootstrap() {
     }
   }
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     httpsOptions,
     logger: isProduction ? ['error', 'warn', 'log'] : ['debug', 'error', 'warn', 'log'],
   });
@@ -66,7 +68,6 @@ async function bootstrap() {
       ]
       : ['http://localhost:5173', 'http://127.0.0.1:5173'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization, Accept, Origin',
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -82,8 +83,13 @@ async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
-  app.useGlobalInterceptors(new TransformInterceptor());
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Expose uploaded files via /uploads/*
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   const config = new DocumentBuilder()
     .setTitle('File Management API')

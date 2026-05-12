@@ -8,6 +8,7 @@ import { MediaService } from './media.service';
 import { UsersService } from '../services/users.service';
 import { LoginRequest } from '../dto/auth/login.auth.dto';
 import { RegisterRequest } from '../dto/auth/register.auth.dto';
+import { UserResource } from '../resources/user.resource';
 
 @Injectable()
 export class AuthService {
@@ -144,20 +145,6 @@ export class AuthService {
     user: User & { id?: string; _id?: unknown },
     media?: { id?: string; _id?: unknown; originalName?: string; mimeType?: string; path?: string } | null,
   ) {
-    const userId = user.id ?? String(user._id ?? '');
-    return {
-      id: userId,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      profileImage: media
-        ? {
-          id: media.id ?? String(media._id ?? ''),
-          originalName: media.originalName ?? '',
-          mimeType: media.mimeType ?? '',
-          path: media.path ?? '',
-        }
-        : null,
-    };
+    return UserResource.profile(user, media ?? null);
   }
 }

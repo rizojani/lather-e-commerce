@@ -34,23 +34,23 @@ export class Address {
   @Prop()
   email?: string;
 
-  @Prop({ required: true })
-  addressLine1!: string;
+  @Prop()
+  addressLine1?: string;
 
   @Prop()
   addressLine2?: string;
 
-  @Prop({ required: true })
-  city!: string;
+  @Prop()
+  city?: string;
 
-  @Prop({ required: true })
-  state!: string;
+  @Prop()
+  state?: string;
 
-  @Prop({ required: true })
-  country!: string;
+  @Prop()
+  country?: string;
 
-  @Prop({ required: true })
-  postalCode!: string;
+  @Prop()
+  postalCode?: string;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

@@ -22,6 +22,17 @@ export interface AdminOrdersListParams {
   userId?: string;
 }
 
+export interface OwnerOrdersListParams {
+  owner: OrderOwner;
+  page: number;
+  limit: number;
+  search?: string;
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  fromDate?: Date;
+  toDate?: Date;
+}
+
 /** Single round-trip: orders + line rows (`orderItems`), sorted per order. */
 const ORDER_ITEMS_LOOKUP = {
   $lookup: {
@@ -57,6 +68,16 @@ export class OrdersRepository {
     return this.model.findById(id).exec();
   }
 
+  /** Order + populated address relations (contact / shipping / billing virtuals). */
+  findByIdWithAddresses(id: string) {
+    return this.model
+      .findById(id)
+      .populate('contactInfo')
+      .populate('shippingAddress')
+      .populate('billingAddress')
+      .exec();
+  }
+
   updateStatus(id: string, status: Order['status']) {
     return this.model.findByIdAndUpdate(id, { status }, { new: true }).exec();
   }
@@ -80,6 +101,164 @@ export class OrdersRepository {
         [{ $match: filter }, { $sort: { createdAt: -1 } }, ORDER_ITEMS_LOOKUP] as PipelineStage[],
       )
       .exec();
+  }
+
+  /** Owner-scoped paginated list with optional filters and embedded items + paymentLog. */
+  async findOwnerOrdersPaginated(params: OwnerOrdersListParams): Promise<{
+    data: Record<string, unknown>[];
+    total: number;
+  }> {
+    const { owner, page, limit, search, status, paymentStatus, fromDate, toDate } = params;
+    const skip = (page - 1) * limit;
+    const stages: PipelineStage[] = [];
+
+    const ownerMatch = owner.userId
+      ? { user: new Types.ObjectId(owner.userId.trim()) }
+      : { sessionId: owner.sessionId?.trim() };
+    stages.push({ $match: ownerMatch } as PipelineStage);
+
+    const preMatch: Record<string, unknown> = {};
+    if (status != null) {
+      preMatch.status = status;
+    }
+    const createdRange: { $gte?: Date; $lte?: Date } = {};
+    if (fromDate && !Number.isNaN(fromDate.getTime())) {
+      createdRange.$gte = fromDate;
+    }
+    if (toDate && !Number.isNaN(toDate.getTime())) {
+      createdRange.$lte = toDate;
+    }
+    if (Object.keys(createdRange).length > 0) {
+      preMatch.createdAt = createdRange;
+    }
+    if (Object.keys(preMatch).length > 0) {
+      stages.push({ $match: preMatch } as PipelineStage);
+    }
+
+    const payColl = this.paymentLogModel.collection.name;
+    stages.push({
+      $lookup: {
+        from: payColl,
+        let: { oid: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$modelType', PaymentLogOwnerType.ORDER] },
+                  { $eq: [{ $toString: '$modelId' }, { $toString: '$$oid' }] },
+                ],
+              },
+            },
+          },
+          { $limit: 1 },
+        ],
+        as: 'paymentLogArr',
+      },
+    } as PipelineStage);
+    stages.push({
+      $addFields: { paymentLog: { $arrayElemAt: ['$paymentLogArr', 0] } },
+    } as PipelineStage);
+    stages.push({ $project: { paymentLogArr: 0 } } as PipelineStage);
+
+    if (paymentStatus === PaymentStatus.PAID) {
+      stages.push({ $match: { 'paymentLog.status': PaymentStatus.PAID } } as PipelineStage);
+    } else if (paymentStatus === PaymentStatus.UNPAID) {
+      stages.push({
+        $match: { $nor: [{ 'paymentLog.status': PaymentStatus.PAID }] },
+      } as PipelineStage);
+    }
+
+    stages.push(ORDER_ITEMS_LOOKUP as PipelineStage);
+
+    const searchTrim = search?.trim();
+    if (searchTrim) {
+      const rx = new RegExp(escapeRegex(searchTrim), 'i');
+      stages.push({
+        $lookup: {
+          from: 'orderItems',
+          let: { oid: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [{ $toString: { $ifNull: ['$orderId', ''] } }, { $toString: '$$oid' }],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'products',
+                let: { pid: '$productId' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: [
+                          { $toString: '$_id' },
+                          { $toString: { $ifNull: ['$$pid', ''] } },
+                        ],
+                      },
+                    },
+                  },
+                  { $limit: 1 },
+                ],
+                as: 'prod',
+              },
+            },
+            { $addFields: { prod: { $arrayElemAt: ['$prod', 0] } } },
+            {
+              $lookup: {
+                from: 'categories',
+                let: { cref: '$prod.category' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: [
+                          { $toString: '$_id' },
+                          { $toString: { $ifNull: ['$$cref', ''] } },
+                        ],
+                      },
+                    },
+                  },
+                  { $limit: 1 },
+                ],
+                as: 'cat',
+              },
+            },
+            { $addFields: { cat: { $arrayElemAt: ['$cat', 0] } } },
+            {
+              $match: {
+                $or: [{ 'prod.title': rx }, { 'prod.name': rx }, { 'cat.name': rx }],
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: 'itemSearchHits',
+        },
+      } as PipelineStage);
+      stages.push({
+        $match: {
+          $expr: { $gt: [{ $size: { $ifNull: ['$itemSearchHits', []] } }, 0] },
+        },
+      } as PipelineStage);
+      stages.push({ $project: { itemSearchHits: 0 } } as PipelineStage);
+    }
+
+    stages.push({
+      $facet: {
+        meta: [{ $count: 'total' }],
+        data: [{ $sort: { createdAt: -1 } }, { $skip: skip }, { $limit: limit }],
+      },
+    } as PipelineStage);
+
+    const agg = await this.model.aggregate(stages).exec();
+    const bucket = agg[0] as { meta?: { total: number }[]; data?: Record<string, unknown>[] } | undefined;
+    return {
+      total: bucket?.meta?.[0]?.total ?? 0,
+      data: bucket?.data ?? [],
+    };
   }
 
   listAll() {

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "seed:categories": "ts-node src/scripts/seed-categories.ts",
+    "seed:media-paths": "ts-node src/scripts/seed-media-paths.ts",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",

@@ -51,6 +51,10 @@ export class ProductsRepository {
 
   list(query: ProductListRequest) {
     const filters: FilterQuery<ProductDocument> = {};
+    const page = query.page && query.page > 0 ? query.page : 1;
+    const limitRaw = query.limit && query.limit > 0 ? query.limit : 24;
+    const limit = Math.min(limitRaw, 100);
+    const skip = (page - 1) * limit;
 
     if (query.gender) filters.gender = query.gender;
     if (query.category) filters.category = query.category;
@@ -67,6 +71,8 @@ export class ProductsRepository {
     return this.model
       .find(filters)
       .sort(sort)
+      .skip(skip)
+      .limit(limit)
       .populate('category')
       .populate({ path: 'media', model: Media.name })
       .exec();

@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { CreateUserAddressDto } from '../dto/address/create-user-address.dto';
 import { Address, AddressDocument, AddressOwnerType, AddressType } from '../schemas/address.schema';
 import { AddressPayloadDto } from '../dto/address/address-payload.dto';
+import { ContactInfoPayloadDto } from '../dto/orders/contact-info.dto';
 
 @Injectable()
 export class AddressesService {
@@ -50,7 +51,7 @@ export class AddressesService {
 
   createOrderAddresses(
     orderId: string,
-    payload: { contactInfo: AddressPayloadDto; shippingAddress: AddressPayloadDto; billingAddress: AddressPayloadDto },
+    payload: { contactInfo: ContactInfoPayloadDto; shippingAddress: AddressPayloadDto; billingAddress: AddressPayloadDto },
   ) {
     return this.addressModel.insertMany([
       { ...payload.contactInfo, modelType: AddressOwnerType.ORDER, modelId: new Types.ObjectId(orderId), type: AddressType.CONTACT },

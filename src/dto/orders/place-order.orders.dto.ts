@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import { IsEnum, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { AddressPayloadDto } from '../address/address-payload.dto';
+import { ContactInfoPayloadDto } from './contact-info.dto';
 import { PaymentMethod } from '../../schemas/order.schema';
 
 export class PlaceOrderRequest {
@@ -9,10 +10,10 @@ export class PlaceOrderRequest {
   @IsEnum(PaymentMethod)
   paymentMethod!: PaymentMethod;
 
-  @ApiProperty({ type: AddressPayloadDto })
+  @ApiProperty({ type: ContactInfoPayloadDto })
   @ValidateNested()
-  @Type(() => AddressPayloadDto)
-  contactInfo!: AddressPayloadDto;
+  @Type(() => ContactInfoPayloadDto)
+  contactInfo!: ContactInfoPayloadDto;
 
   @ApiProperty({ type: AddressPayloadDto })
   @ValidateNested()

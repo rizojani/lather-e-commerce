@@ -660,8 +660,8 @@
                   { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
-                "url": "{{baseUrl}}/orders/my",
-                "description": "Each order in `data` includes `items[]` loaded from `orderItems` (not embedded on Order doc). Response shaped by OrderResource."
+                "url": "{{baseUrl}}/orders/my?page=1&limit=10&search=&status=&paymentStatus=&fromDate=&toDate=",
+                "description": "Paginated owner orders with optional filters. Empty query values are ignored. Search matches product title/name or category name. Response: { items: OrderResource[], meta }."
               }
             },
             {

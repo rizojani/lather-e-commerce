@@ -1,6 +1,7 @@
 import { Body, Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { AuthResource } from '../resources/auth.resource';
 import { multerConfig } from '../config/multer.config';
 import { ForgotPasswordSendTokenRequest } from '../dto/auth/forgot-password-send-token.auth.dto';
@@ -17,6 +18,7 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'Register user' })
+  @ResponseMessage('User registered successfully')
   @UseInterceptors(FileInterceptor('profileImage', multerConfig))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -64,6 +66,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
+  @ResponseMessage('Login successful')
   async login(@Body() payload: LoginRequest) {
     const { accessToken, user } = await this.authService.login(payload);
     return AuthResource.tokenResponse(accessToken, user);
@@ -71,18 +74,21 @@ export class AuthController {
 
   @Post('forgot-password/send-token')
   @ApiOperation({ summary: 'Send forgot-password token' })
+  @ResponseMessage('Forgot password token sent successfully')
   forgotPasswordSendToken(@Body() payload: ForgotPasswordSendTokenRequest) {
     return this.authService.sendForgotPasswordToken(payload.email);
   }
 
   @Post('forgot-password/verify-token')
   @ApiOperation({ summary: 'Verify forgot-password token' })
+  @ResponseMessage('Reset token verified successfully')
   forgotPasswordVerifyToken(@Body() payload: ForgotPasswordVerifyTokenRequest) {
     return this.authService.verifyForgotPasswordToken(payload.email, payload.token);
   }
 
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password using token' })
+  @ResponseMessage('Password reset successfully')
   resetPassword(@Body() payload: ResetPasswordRequest) {
     return this.authService.resetPassword(payload.email, payload.token, payload.password);
   }

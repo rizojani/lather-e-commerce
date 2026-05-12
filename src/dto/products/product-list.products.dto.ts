@@ -1,8 +1,25 @@
-import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender } from '../../common/types/product.enum';
 
 export class ProductListRequest {
+  @ApiPropertyOptional({ example: 1, minimum: 1 })
+  @Transform(({ value }) => (value === '' || value == null ? undefined : value))
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ example: 24, minimum: 1 })
+  @Transform(({ value }) => (value === '' || value == null ? undefined : value))
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
   @ApiPropertyOptional({ enum: Gender, example: Gender.UNISEX })
   @IsOptional()
   @IsEnum(Gender)

@@ -5,6 +5,7 @@ import { CartRepository } from '../repositories/cart.repository';
 import { OrderItemsRepository } from '../repositories/order-items.repository';
 import { OrdersRepository } from '../repositories/orders.repository';
 import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
+import { ListMyOrdersQueryDto } from '../dto/orders/list-my-orders.orders.dto';
 import { OrderStatus } from '../schemas/order.schema';
 import type { OrderDocument } from '../schemas/order.schema';
 import { ListAdminOrdersQueryDto } from '../dto/orders/list-admin-orders.orders.dto';
@@ -117,16 +118,51 @@ export class OrdersService {
 
     await this.cartRepository.deleteAllLinesForParent(String(root._id));
 
+    const orderWithRelations = await this.ordersRepository.findByIdWithAddresses(orderId);
+    const orderPlain = (orderWithRelations ?? order).toObject({ virtuals: true }) as unknown as Record<string, unknown>;
+
     return {
-      ...(order.toObject({ virtuals: true }) as unknown as Record<string, unknown>),
+      ...orderPlain,
       items: insertedItems.map((i) => i.toObject({ virtuals: true })),
     };
   }
 
-  async myOrders(owner: OrderOwner) {
+  async myOrders(owner: OrderOwner, query?: ListMyOrdersQueryDto) {
     this.assertOwner(owner);
-    const rows = await this.ordersRepository.findByOwnerWithLineItems(owner);
-    return rows as Array<Record<string, unknown>>;
+    const page = query?.page && query.page > 0 ? query.page : 1;
+    const limit = Math.min(query?.limit && query.limit > 0 ? query.limit : 10, 100);
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+    if (query?.fromDate) {
+      const d = new Date(query.fromDate);
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCHours(0, 0, 0, 0);
+        fromDate = d;
+      }
+    }
+    if (query?.toDate) {
+      const d = new Date(query.toDate);
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCHours(23, 59, 59, 999);
+        toDate = d;
+      }
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      const t = fromDate;
+      fromDate = toDate;
+      toDate = t;
+    }
+    const { data, total } = await this.ordersRepository.findOwnerOrdersPaginated({
+      owner,
+      page,
+      limit,
+      search: query?.search,
+      status: query?.status,
+      paymentStatus: query?.paymentStatus,
+      fromDate,
+      toDate,
+    });
+    return { data, total, page, limit };
   }
 
   /** Order must belong to JWT user or guest session (same rules as cart). */
@@ -135,7 +171,7 @@ export class OrdersService {
     if (!Types.ObjectId.isValid(orderId.trim())) {
       throw new BadRequestException('Invalid order id');
     }
-    const order = await this.ordersRepository.findById(orderId.trim());
+    const order = await this.ordersRepository.findByIdWithAddresses(orderId.trim());
     if (!order) {
       throw new NotFoundException('Order not found');
     }
@@ -194,7 +230,7 @@ export class OrdersService {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid order id');
     }
-    const order = await this.ordersRepository.findById(id);
+    const order = await this.ordersRepository.findByIdWithAddresses(id);
     if (!order) {
       throw new NotFoundException('Order not found');
     }

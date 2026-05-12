@@ -7,6 +7,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '../common/types/roles.enum';
@@ -40,6 +41,7 @@ export class AdminOrdersController {
   @ApiQuery({ name: 'toDate', required: false, example: '2025-12-31' })
   @ApiQuery({ name: 'paymentStatus', required: false, enum: PaymentStatus })
   @ApiQuery({ name: 'userId', required: false, description: 'Mongo id of ordering user' })
+  @ResponseMessage('Orders fetched successfully')
   async list(@Query() query: ListAdminOrdersQueryDto) {
     const { data, total, page, limit } = await this.ordersService.adminListOrders(query);
     return {
@@ -56,6 +58,7 @@ export class AdminOrdersController {
   @Get(':id')
   @ApiOperation({ summary: 'Get order by id (admin)' })
   @ApiParam({ name: 'id' })
+  @ResponseMessage('Order fetched successfully')
   async getOne(@Param('id') id: string) {
     const row = await this.ordersService.getOrderAdminById(id);
     return OrderResource.adminOne(row);
@@ -63,6 +66,7 @@ export class AdminOrdersController {
 
   @Patch(':id/payment/paid')
   @ApiOperation({ summary: 'Mark order payment as paid (admin)' })
+  @ResponseMessage('Payment marked as paid successfully')
   markPaymentPaid(@Param('id') id: string, @Body() payload: MarkOrderPaymentPaidRequest) {
     return this.ordersService.markOrderPaymentPaid(id, payload);
   }
@@ -73,6 +77,7 @@ export class AdminOrdersController {
     description: 'Provide `reason` when setting status to `cancelled` or `rejected`.',
   })
   @ApiParam({ name: 'id' })
+  @ResponseMessage('Order updated successfully')
   async patch(@Param('id') id: string, @Body() payload: PatchAdminOrderDto) {
     const row = await this.ordersService.patchOrderAdmin(id, payload);
     return OrderResource.adminOne(row);

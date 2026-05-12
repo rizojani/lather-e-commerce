@@ -1,6 +1,10 @@
-import { Body, Controller, Get, Headers, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ListMyOrdersQueryDto } from '../dto/orders/list-my-orders.orders.dto';
+import { OrderStatus } from '../schemas/order.schema';
+import { PaymentStatus } from '../schemas/payment-log.schema';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { PlaceOrderRequest } from '../dto/orders/place-order.orders.dto';
 import { OrderResource } from '../resources/order.resource';
@@ -16,34 +20,54 @@ export class UserOrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Place order' })
+  @ResponseMessage('Order placed successfully')
   async placeOrder(
     @CurrentUser('sub') userId: string | undefined,
     @Headers('sessionid') sessionId: string | undefined,
     @Body() payload: PlaceOrderRequest,
   ) {
     const data = await this.ordersService.placeOrder({ userId, sessionId }, payload);
-    const { items, ...orderHeader } = data as Record<string, unknown> & {
-      items: unknown[];
-    };
-    return OrderResource.one(orderHeader, items ?? []);
+    return OrderResource.fromMerged(data as Record<string, unknown>);
   }
 
   @Get('my')
-  @ApiOperation({ summary: 'Get current user orders' })
-  async myOrders(@CurrentUser('sub') userId: string | undefined, @Headers('sessionid') sessionId?: string) {
-    const rows = await this.ordersService.myOrders({ userId, sessionId });
-    return OrderResource.collection(rows as Array<Record<string, unknown>>);
+  @ApiOperation({ summary: 'Get current user orders (paginated, optional filters)' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({ name: 'search', required: false, description: 'Match product title/name or category name' })
+  @ApiQuery({ name: 'status', required: false, enum: OrderStatus })
+  @ApiQuery({ name: 'paymentStatus', required: false, enum: PaymentStatus })
+  @ApiQuery({ name: 'fromDate', required: false, example: '2025-01-01' })
+  @ApiQuery({ name: 'toDate', required: false, example: '2025-12-31' })
+  @ResponseMessage('Orders fetched successfully')
+  async myOrders(
+    @CurrentUser('sub') userId: string | undefined,
+    @Headers('sessionid') sessionId?: string,
+    @Query() query?: ListMyOrdersQueryDto,
+  ) {
+    const { data, total, page, limit } = await this.ordersService.myOrders({ userId, sessionId }, query);
+    return {
+      items: OrderResource.collection(data as Array<Record<string, unknown>>),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: limit > 0 ? Math.ceil(total / limit) : 0,
+      },
+    };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get order by id' })
   @ApiParam({ name: 'id', description: 'Order MongoDB id' })
+  @ResponseMessage('Order fetched successfully')
   async getOne(
     @CurrentUser('sub') userId: string | undefined,
     @Headers('sessionid') sessionId: string | undefined,
     @Param('id') id: string,
   ) {
     const { order, items } = await this.ordersService.getOrderByIdForOwner({ userId, sessionId }, id);
-    return OrderResource.one(order, items);
+    const orderPlain = order.toObject({ virtuals: true }) as unknown as Record<string, unknown>;
+    return OrderResource.fromMerged({ ...orderPlain, items });
   }
 }

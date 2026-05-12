@@ -14,6 +14,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { multerConfig } from '../config/multer.config';
@@ -51,6 +52,7 @@ export class AdminProductsController {
   @ApiQuery({ name: 'inventoryStatus', required: false, enum: ['in-stock', 'out-of-stock'] })
   @ApiQuery({ name: 'fromDate', required: false, example: '2025-01-01' })
   @ApiQuery({ name: 'toDate', required: false, example: '2025-12-31' })
+  @ResponseMessage('Products fetched successfully')
   async list(@Query() query: ListAdminProductsQueryDto) {
     const { items, total, page, limit } = await this.productsService.listAdminPaginated(query);
     return {
@@ -94,6 +96,7 @@ export class AdminProductsController {
       },
     },
   })
+  @ResponseMessage('Product created successfully')
   create(
     @Body() payload: CreateAdminProductDto,
     @UploadedFiles() medias?: Express.Multer.File[],
@@ -107,6 +110,7 @@ export class AdminProductsController {
     description: 'Same shape as create/update: category + full medias. Includes inactive products.',
   })
   @ApiParam({ name: 'id', description: 'Product MongoDB id' })
+  @ResponseMessage('Product fetched successfully')
   getOne(@Param('id') id: string) {
     return this.productsService.getDetailForAdmin(id);
   }
@@ -141,6 +145,7 @@ export class AdminProductsController {
       },
     },
   })
+  @ResponseMessage('Product updated successfully')
   update(
     @Param('id') id: string,
     @Body() payload: UpdateAdminProductDto,
@@ -151,6 +156,7 @@ export class AdminProductsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete product by id' })
+  @ResponseMessage('Product deleted successfully')
   remove(@Param('id') id: string) {
     return this.productsService.delete(id);
   }

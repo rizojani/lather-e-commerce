@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ProductResource } from '../resources/product.resource';
 import { ProductListRequest } from '../dto/products/product-list.products.dto';
 import { ProductsService } from '../services/products.service';
@@ -17,6 +18,9 @@ export class UserProductsController {
   @ApiQuery({ name: 'color', required: false, example: 'Black' })
   @ApiQuery({ name: 'price', required: false, example: 'low_to_high' })
   @ApiQuery({ name: 'sort', required: false, example: 'desc' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 24 })
+  @ResponseMessage('Products fetched successfully')
   async list(@Query() query: ProductListRequest) {
     const products = await this.productsService.list(query);
     return ProductResource.collection(products as unknown as Array<Record<string, unknown>>);
@@ -24,18 +28,21 @@ export class UserProductsController {
 
   @Get('latest')
   @ApiOperation({ summary: 'List latest products' })
+  @ResponseMessage('Latest products fetched successfully')
   async latest() {
     return ProductResource.collection((await this.productsService.latest()) as unknown as Array<Record<string, unknown>>);
   }
 
   @Get('sale')
   @ApiOperation({ summary: 'List sale products' })
+  @ResponseMessage('Sale products fetched successfully')
   async onSale() {
     return ProductResource.collection((await this.productsService.onSale()) as unknown as Array<Record<string, unknown>>);
   }
 
   @Get('popular')
   @ApiOperation({ summary: 'List popular products' })
+  @ResponseMessage('Popular products fetched successfully')
   async popular() {
     return ProductResource.collection((await this.productsService.popular()) as unknown as Array<Record<string, unknown>>);
   }
@@ -43,6 +50,7 @@ export class UserProductsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get product by id (storefront; inactive returns 404)' })
   @ApiParam({ name: 'id', description: 'Product MongoDB id' })
+  @ResponseMessage('Product fetched successfully')
   async getOne(@Param('id') id: string) {
     return this.productsService.getDetailForUser(id);
   }

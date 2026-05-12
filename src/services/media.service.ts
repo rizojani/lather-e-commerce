@@ -12,6 +12,10 @@ interface CreateMediaPayload {
   type: MediaType;
 }
 
+function normalizeMediaPath(pathValue: string): string {
+  return pathValue.replace(/\\/g, '/');
+}
+
 @Injectable()
 export class MediaService {
   constructor(@InjectModel(Media.name) private readonly mediaModel: Model<MediaDocument>) {}
@@ -20,7 +24,7 @@ export class MediaService {
     return this.mediaModel.create({
       originalName: payload.file.originalname,
       mimeType: payload.file.mimetype,
-      path: payload.file.path,
+      path: normalizeMediaPath(payload.file.path),
       type: payload.type,
       modelType: payload.modelType,
       modelId: new Types.ObjectId(payload.modelId),
