@@ -30,8 +30,12 @@ export class UserOrdersController {
     return OrderResource.fromMerged(data as Record<string, unknown>);
   }
 
-  @Get('my')
-  @ApiOperation({ summary: 'Get current user orders (paginated, optional filters)' })
+  @Get()
+  @ApiOperation({
+    summary: 'List orders (paginated, optional filters)',
+    description:
+      'Logged-in users: filtered by their `userId`. Guest users: filtered by `sessionId` header. Returns 401-style empty owner error if neither is present.',
+  })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
   @ApiQuery({ name: 'search', required: false, description: 'Match product title/name or category name' })
@@ -40,12 +44,13 @@ export class UserOrdersController {
   @ApiQuery({ name: 'fromDate', required: false, example: '2025-01-01' })
   @ApiQuery({ name: 'toDate', required: false, example: '2025-12-31' })
   @ResponseMessage('Orders fetched successfully')
-  async myOrders(
+  async listOrders(
     @CurrentUser('sub') userId: string | undefined,
     @Headers('sessionid') sessionId?: string,
     @Query() query?: ListMyOrdersQueryDto,
   ) {
-    const { data, total, page, limit } = await this.ordersService.myOrders({ userId, sessionId }, query);
+    const owner = userId?.trim() ? { userId } : { sessionId };
+    const { data, total, page, limit } = await this.ordersService.myOrders(owner, query);
     return {
       items: OrderResource.collection(data as Array<Record<string, unknown>>),
       meta: {

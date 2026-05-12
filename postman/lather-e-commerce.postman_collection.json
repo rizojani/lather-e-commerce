@@ -653,15 +653,15 @@
               }
             },
             {
-              "name": "My Orders",
+              "name": "List Orders",
               "request": {
                 "method": "GET",
                 "header": [
                   { "key": "Authorization", "value": "Bearer {{user_token}}" },
                   { "key": "sessionId", "value": "{{sessionId}}" }
                 ],
-                "url": "{{baseUrl}}/orders/my?page=1&limit=10&search=&status=&paymentStatus=&fromDate=&toDate=",
-                "description": "Paginated owner orders with optional filters. Empty query values are ignored. Search matches product title/name or category name. Response: { items: OrderResource[], meta }."
+                "url": "{{baseUrl}}/orders?page=1&limit=10&search=&status=&paymentStatus=&fromDate=&toDate=",
+                "description": "Paginated orders for the current owner. Logged-in users are filtered by `userId` from JWT; guests are filtered by `sessionId` header. Empty query values are ignored. Search matches product title/name or category name. Response: { items: OrderResource[], meta }."
               }
             },
             {
