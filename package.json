@@ -4,7 +4,12 @@
   "private": true,
   "scripts": {
     "build": "nest build",
+    "migrate:categories": "ts-node src/scripts/migrate-categories.ts",
     "seed:categories": "ts-node src/scripts/seed-categories.ts",
+    "seed:categories:tree": "ts-node src/scripts/seed-categories-tree.ts",
+    "clear:categories": "ts-node src/scripts/clear-categories.ts",
+    "db:refresh": "ts-node src/scripts/db-refresh.ts",
+    "reset:dev-seed": "ts-node src/scripts/db-refresh.ts",
     "seed:media-paths": "ts-node src/scripts/seed-media-paths.ts",
     "start": "nest start",
     "start:dev": "nest start --watch",

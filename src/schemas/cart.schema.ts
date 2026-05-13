@@ -43,7 +43,7 @@ export class Cart {
 export const CartSchema = SchemaFactory.createForClass(Cart);
 
 CartSchema.index(
-  { cartableType: 1, cartableId: 1 },
+  { cartableId: 1 },
   {
     unique: true,
     partialFilterExpression: { cartableType: CartableType.USER },

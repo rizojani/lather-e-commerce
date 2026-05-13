@@ -2,20 +2,17 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { CategoriesService } from '../services/categories.service';
 
-/**
- * Idempotent wearable category seed (jacket, cap, wallet, shoes, belts as roots).
- * For migrate + clear + seed + media paths, use `npm run db:refresh` (alias: `npm run reset:dev-seed`).
- */
-async function seedCategories() {
+/** Drops legacy `name` unique index, backfills morph/slug/title fields, syncs indexes. */
+async function migrateCategories() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     const categoriesService = app.get(CategoriesService);
-    await categoriesService.seedWearableRoots();
+    await categoriesService.migrateCategories();
     // eslint-disable-next-line no-console
-    console.log('seed:categories — wearable roots upserted (idempotent).');
+    console.log('Category migration finished.');
   } finally {
     await app.close();
   }
 }
 
-void seedCategories();
+void migrateCategories();

@@ -3,6 +3,7 @@ import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ResponseMessage } from '../common/decorators/response-message.decorator';
 import { ProductResource } from '../resources/product.resource';
 import { ProductListRequest } from '../dto/products/product-list.products.dto';
+import { Gender } from '../common/types/product.enum';
 import { ProductsService } from '../services/products.service';
 
 @Controller('products')
@@ -12,7 +13,14 @@ export class UserProductsController {
 
   @Get()
   @ApiOperation({ summary: 'List products with filters' })
-  @ApiQuery({ name: 'gender', required: false, example: 'unisex' })
+  @ApiQuery({
+    name: 'gender',
+    required: false,
+    enum: Gender,
+    example: Gender.UNISEX,
+    description:
+      'Filters by product `gender` (`men`, `women`, `unisex` only). Kids ranges are not a gender value here — use category filters / category tree instead.',
+  })
   @ApiQuery({ name: 'category', required: false, example: 'Skincare' })
   @ApiQuery({ name: 'size', required: false, example: 'M' })
   @ApiQuery({ name: 'color', required: false, example: 'Black' })
